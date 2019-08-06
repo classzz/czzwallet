@@ -76,7 +76,7 @@ func hashCZZB(in []byte, out []byte, tbl []byte, it byte) int {
 	var word [56]byte
 	var data [256]byte
 	i := 0
-	for k := 0; k < 2048; k++ {
+	for k := 0; k < 8; k++ {
 
 		var r, ki, kf byte
 		hashKeySet(cw[:], word[:])
