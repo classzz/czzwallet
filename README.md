@@ -36,7 +36,7 @@ encryption will extend to transactions as well.
 czzwallet is not an SPV client and requires connecting to a local or
 remote czzd instance for asynchronous blockchain queries and
 notifications over websockets.  Full czzd installation instructions
-can be found [here](https://github.com/classzz/czzd).  An alternative
+can be found [here](https://github.com/classzz/classzz).  An alternative
 SPV mode that is compatible with czzd and Bitcoin Core is planned for
 a future release.
 
@@ -79,13 +79,6 @@ Building or updating from source requires the following build dependencies:
   Installation instructions can be found here: http://golang.org/doc/install.
   It is recommended to add `$GOPATH/bin` to your `PATH` at this point.
 
-
-- **Dep**
-
-  Dep is used to manage project dependencies.
-  To install:
-
-  `$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh`
 
 **Getting the source**:
 
@@ -185,15 +178,6 @@ $ $EDITOR ~/.czzwallet/czzwallet.conf
 The [integrated github issue tracker](https://github.com/classzz/czzwallet/issues)
 is used for this project.
 
-## Security Disclosures
-
-To report security issues please contact:
-
-Chris Pacia (ctpacia@gmail.com) - GPG Fingerprint: 0150 2502 DD3A 928D CE52 8CB9 B895 6DBF EE7C 105C
-
-or
-
-Josh Ellithorpe (quest@mac.com) - GPG Fingerprint: B6DE 3514 E07E 30BB 5F40  8D74 E49B 7E00 0022 8DDD 
 
 ## License
 
