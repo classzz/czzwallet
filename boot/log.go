@@ -53,13 +53,13 @@ var (
 	// is written to by the Write method of the logWriter type.
 	logRotatorPipe *io.PipeWriter
 
-	log          = backendLog.Logger("BCHW")
+	log          = backendLog.Logger("CZZW")
 	walletLog    = backendLog.Logger("WLLT")
 	txmgrLog     = backendLog.Logger("TMGR")
 	chainLog     = backendLog.Logger("CHNS")
 	grpcLog      = backendLog.Logger("GRPC")
 	legacyRPCLog = backendLog.Logger("RPCS")
-	bchnLog      = backendLog.Logger("BCHN")
+	czznLog      = backendLog.Logger("CZZN")
 )
 
 // Initialize package-global logger variables.
@@ -70,18 +70,18 @@ func init() {
 	rpcclient.UseLogger(chainLog)
 	rpcserver.UseLogger(grpcLog)
 	legacyrpc.UseLogger(legacyRPCLog)
-	neutrino.UseLogger(bchnLog)
+	neutrino.UseLogger(czznLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]czzlog.Logger{
-	"BCHW": log,
+	"CZZW": log,
 	"WLLT": walletLog,
 	"TMGR": txmgrLog,
 	"CHNS": chainLog,
 	"GRPC": grpcLog,
 	"RPCS": legacyRPCLog,
-	"BCHN": bchnLog,
+	"CZZN": czznLog,
 }
 
 // initLogRotator initializes the logging rotater to write logs to logFile and
