@@ -534,17 +534,18 @@ func loadConfig(optionalConfigPath *string) (*config, []string, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if cfg.DisableClientTLS {
-			if _, ok := localhostListeners[RPCHost]; !ok {
-				str := "%s: the --noclienttls option may not be used " +
-					"when connecting RPC to non localhost " +
-					"addresses: %s"
-				err := fmt.Errorf(str, funcName, cfg.RPCConnect)
-				fmt.Fprintln(os.Stderr, err)
-				fmt.Fprintln(os.Stderr, usageMessage)
-				return nil, nil, err
-			}
-		} else {
+		//if cfg.DisableClientTLS {
+		//	if _, ok := localhostListeners[RPCHost]; !ok {
+		//		str := "%s: the --noclienttls option may not be used " +
+		//			"when connecting RPC to non localhost " +
+		//			"addresses: %s"
+		//		err := fmt.Errorf(str, funcName, cfg.RPCConnect)
+		//		fmt.Fprintln(os.Stderr, err)
+		//		fmt.Fprintln(os.Stderr, usageMessage)
+		//		return nil, nil, err
+		//	}
+		//} else {。
+		if !cfg.DisableClientTLS {
 			// If CAFile is unset, choose either the copy or local czzd cert.
 			if !cfg.CAFile.ExplicitlySet() {
 				cfg.CAFile.Value = filepath.Join(cfg.AppDataDir.Value, defaultCAFilename)
@@ -631,7 +632,7 @@ func loadConfig(optionalConfigPath *string) (*config, []string, error) {
 		allListeners := append(cfg.LegacyRPCListeners,
 			cfg.ExperimentalRPCListeners...)
 		for _, addr := range allListeners {
-			host, _, err := net.SplitHostPort(addr)
+			_, _, err := net.SplitHostPort(addr)
 			if err != nil {
 				str := "%s: RPC listen interface '%s' is " +
 					"invalid: %v"
@@ -640,15 +641,15 @@ func loadConfig(optionalConfigPath *string) (*config, []string, error) {
 				fmt.Fprintln(os.Stderr, usageMessage)
 				return nil, nil, err
 			}
-			if _, ok := localhostListeners[host]; !ok {
-				str := "%s: the --noservertls option may not be used " +
-					"when binding RPC to non localhost " +
-					"addresses: %s"
-				err := fmt.Errorf(str, funcName, addr)
-				fmt.Fprintln(os.Stderr, err)
-				fmt.Fprintln(os.Stderr, usageMessage)
-				return nil, nil, err
-			}
+			//if _, ok := localhostListeners[host]; !ok {
+			//	str := "%s: the --noservertls option may not be used " +
+			//		"when binding RPC to non localhost " +
+			//		"addresses: %s"
+			//	err := fmt.Errorf(str, funcName, addr)
+			//	fmt.Fprintln(os.Stderr, err)
+			//	fmt.Fprintln(os.Stderr, usageMessage)
+			//	return nil, nil, err
+			//}
 		}
 	}
 
