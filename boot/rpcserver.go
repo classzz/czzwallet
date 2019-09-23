@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"io/ioutil"
 	"net"
@@ -23,7 +24,7 @@ import (
 	"github.com/classzz/czzwallet/rpc/rpcserver"
 	"github.com/classzz/czzwallet/wallet"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	//"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 )
 
@@ -124,16 +125,6 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 		return nil, nil, err
 	}
 
-	// Change the standard net.Listen function to the tls one.
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{keyPair},
-		MinVersion:   tls.VersionTLS12,
-		NextProtos:   []string{"h2"}, // HTTP/2 over TLS
-	}
-	legacyListen = func(net string, laddr string) (net.Listener, error) {
-		return tls.Listen(net, laddr, tlsConfig)
-	}
-
 	if len(cfg.ExperimentalRPCListeners) != 0 {
 		listeners := makeListeners(cfg.ExperimentalRPCListeners, net.Listen)
 		if len(listeners) == 0 {
@@ -163,6 +154,19 @@ func startRPCServers(walletLoader *wallet.Loader) (*grpc.Server, *legacyrpc.Serv
 	if cfg.Username == "" || cfg.Password == "" {
 		log.Info("Legacy RPC server disabled (requires username and password)")
 	} else if len(cfg.LegacyRPCListeners) != 0 {
+
+		if !cfg.DisableServerTLS {
+			//Change the standard net.Listen function to the tls one.
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{keyPair},
+				MinVersion:   tls.VersionTLS12,
+				NextProtos:   []string{"h2"}, // HTTP/2 over TLS
+			}
+			legacyListen = func(net string, laddr string) (net.Listener, error) {
+				return tls.Listen(net, laddr, tlsConfig)
+			}
+		}
+
 		listeners := makeListeners(cfg.LegacyRPCListeners, legacyListen)
 		if len(listeners) == 0 {
 			err := errors.New("failed to create listeners for legacy RPC server")
