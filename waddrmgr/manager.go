@@ -36,7 +36,7 @@ const (
 	// addresses.  This is useful since normal accounts are derived from
 	// the root hierarchical deterministic key and imported addresses do
 	// not fit into that model.
-	ImportedAddrAccount = MaxAccountNum + 1 // 2^31 - 1
+	ImportedAddrAccount = MaxAccountNum - 1 // 2^31 - 1
 
 	// ImportedAddrAccountName is the name of the imported account.
 	ImportedAddrAccountName = "imported"
@@ -1601,6 +1601,19 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 		return err
 	}
 
+	importAcctKeyPriv, err := deriveAccountKey(coinTypeKeyPriv, ImportedAddrAccount)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if err == hdkeychain.ErrInvalidChild {
+			str := "the provided seed is unusable"
+			return managerError(ErrKeyChain, str,
+				hdkeychain.ErrUnusableSeed)
+		}
+
+		return err
+	}
+
 	// Ensure the branch keys can be derived for the provided seed according
 	// to our BIP0044-like derivation.
 	if err := checkBranchKeys(acctKeyPriv); err != nil {
@@ -1617,6 +1630,13 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 
 	// The address manager needs the public extended key for the account.
 	acctKeyPub, err := acctKeyPriv.Neuter()
+	if err != nil {
+		str := "failed to convert private key for account 0"
+		return managerError(ErrKeyChain, str, err)
+	}
+
+	// The address manager needs the public extended key for the account.
+	importAcctKeyPub, err := acctKeyPriv.Neuter()
 	if err != nil {
 		str := "failed to convert private key for account 0"
 		return managerError(ErrKeyChain, str, err)
@@ -1651,6 +1671,18 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 		return managerError(ErrCrypto, str, err)
 	}
 
+	importAcctPubEnc, err := cryptoKeyPub.Encrypt([]byte(importAcctKeyPub.String()))
+	if err != nil {
+		str := "failed to  encrypt public key for account 0"
+		return managerError(ErrCrypto, str, err)
+	}
+
+	importAcctPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(importAcctKeyPriv.String()))
+	if err != nil {
+		str := "failed to encrypt private key for account 0"
+		return managerError(ErrCrypto, str, err)
+	}
+
 	// Save the encrypted cointype keys to the database.
 	err = putCoinTypeKeys(ns, &scope, coinTypePubEnc, coinTypePrivEnc)
 	if err != nil {
@@ -1667,7 +1699,7 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 	}
 
 	return putAccountInfo(
-		ns, &scope, ImportedAddrAccount, nil, nil, 0, 0,
+		ns, &scope, ImportedAddrAccount, importAcctPubEnc, importAcctPrivEnc, 0, 0,
 		ImportedAddrAccountName,
 	)
 }

@@ -220,6 +220,7 @@ func (s *Store) updateMinedBalance(ns walletdb.ReadWriteBucket, rec *TxRecord,
 		}
 
 		newMinedBalance -= amt
+		log.Debug("del", "amt", amt, "newMinedBalance", newMinedBalance)
 	}
 
 	// For each output of the record that is marked as a credit, if the
@@ -266,7 +267,7 @@ func (s *Store) updateMinedBalance(ns walletdb.ReadWriteBucket, rec *TxRecord,
 	if it.err != nil {
 		return it.err
 	}
-
+	log.Debug("del putMinedBalance ", "minedBalance", minedBalance, "newMinedBalance", newMinedBalance)
 	// Update the balance if it has changed.
 	if newMinedBalance != minedBalance {
 		return putMinedBalance(ns, newMinedBalance)
@@ -322,9 +323,9 @@ func (s *Store) insertMinedTx(ns walletdb.ReadWriteBucket, rec *TxRecord,
 
 	// If a transaction record for this hash and block already exists, we
 	// can exit early.
-	if _, v := existsTxRecord(ns, &rec.Hash, &block.Block); v != nil {
-		return nil
-	}
+	//if _, v := existsTxRecord(ns, &rec.Hash, &block.Block); v != nil {
+	//	return nil
+	//}
 
 	// If a block record does not yet exist for any transactions from this
 	// block, insert a block record first. Otherwise, update it by adding
