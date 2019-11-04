@@ -81,7 +81,7 @@ type Server struct {
 
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
 func jsonAuthFail(w http.ResponseWriter) {
-	w.Header().Add("WWW-Authenticate", `Basic realm="bchwallet RPC"`)
+	w.Header().Add("WWW-Authenticate", `Basic realm="czzwallet RPC"`)
 	http.Error(w, "401 Unauthorized.", http.StatusUnauthorized)
 }
 
@@ -120,42 +120,41 @@ func NewServer(opts *Options, walletLoader *wallet.Loader, listeners []net.Liste
 			w.Header().Set("Content-Type", "application/json")
 			r.Close = true
 
-			if err := server.checkAuthHeader(r); err != nil {
-				log.Warnf("Unauthorized client connection attempt")
-				jsonAuthFail(w)
-				return
-			}
+			//if err := server.checkAuthHeader(r); err != nil {
+			//	log.Warnf("Unauthorized client connection attempt")
+			//	jsonAuthFail(w)
+			//	return
+			//}
 			server.wg.Add(1)
 			server.postClientRPC(w, r)
 			server.wg.Done()
 		}))
 
-	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients,
-		func(w http.ResponseWriter, r *http.Request) {
-			authenticated := false
-			switch server.checkAuthHeader(r) {
-			case nil:
-				authenticated = true
-			case ErrNoAuth:
-				// nothing
-			default:
-				// If auth was supplied but incorrect, rather than simply
-				// being missing, immediately terminate the connection.
-				log.Warnf("Disconnecting improperly authorized " +
-					"websocket client")
-				jsonAuthFail(w)
-				return
-			}
+	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients, func(w http.ResponseWriter, r *http.Request) {
+		authenticated := false
+		switch server.checkAuthHeader(r) {
+		case nil:
+			authenticated = true
+		case ErrNoAuth:
+			// nothing
+		default:
+			// If auth was supplied but incorrect, rather than simply
+			// being missing, immediately terminate the connection.
+			log.Warnf("Disconnecting improperly authorized " +
+				"websocket client")
+			jsonAuthFail(w)
+			return
+		}
 
-			conn, err := server.upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				log.Warnf("Cannot websocket upgrade client %s: %v",
-					r.RemoteAddr, err)
-				return
-			}
-			wsc := newWebsocketClient(conn, authenticated, r.RemoteAddr)
-			server.websocketClientRPC(wsc)
-		}))
+		conn, err := server.upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Warnf("Cannot websocket upgrade client %s: %v",
+				r.RemoteAddr, err)
+			return
+		}
+		wsc := newWebsocketClient(conn, authenticated, r.RemoteAddr)
+		server.websocketClientRPC(wsc)
+	}))
 
 	for _, lis := range listeners {
 		server.serve(lis)

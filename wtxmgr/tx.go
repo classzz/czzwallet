@@ -323,9 +323,9 @@ func (s *Store) insertMinedTx(ns walletdb.ReadWriteBucket, rec *TxRecord,
 
 	// If a transaction record for this hash and block already exists, we
 	// can exit early.
-	//if _, v := existsTxRecord(ns, &rec.Hash, &block.Block); v != nil {
-	//	return nil
-	//}
+	if _, v := existsTxRecord(ns, &rec.Hash, &block.Block); v != nil {
+		return nil
+	}
 
 	// If a block record does not yet exist for any transactions from this
 	// block, insert a block record first. Otherwise, update it by adding

@@ -1354,7 +1354,6 @@ func makeOutputs(pairs map[string]czzutil.Amount, chainParams *chaincfg.Params) 
 	outputs := make([]*wire.TxOut, 0, len(pairs))
 	for addrStr, amt := range pairs {
 		addr, err := czzutil.DecodeAddress(addrStr, chainParams)
-		fmt.Println(addr.String())
 		if err != nil {
 			return nil, fmt.Errorf("cannot decode address: %s", err)
 		}
@@ -1690,12 +1689,14 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 				return nil, DeserializationError{errors.New(s)}
 			}
 
-			addr, err := czzutil.NewAddressPubKey(wif.SerializePubKey(),
-				w.ChainParams())
+			//addr, err := czzutil.NewAddressPubKey(wif.SerializePubKey(),
+			//	w.ChainParams())
+			address, err := czzutil.NewAddressPubKeyHash(
+				czzutil.Hash160(wif.SerializePubKey()), &chaincfg.MainNetParams)
 			if err != nil {
 				return nil, DeserializationError{err}
 			}
-			keys[addr.EncodeAddress()] = wif
+			keys[address.String()] = wif
 		}
 	}
 

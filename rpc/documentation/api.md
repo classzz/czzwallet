@@ -1045,7 +1045,6 @@ an account.
 
 - `Aborted`: The wallet database is closed.
 
-**Stability:** Unstable
 
 ___
 
