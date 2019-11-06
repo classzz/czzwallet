@@ -273,6 +273,7 @@ func (s *ScopedKeyManager) deriveKey(acctInfo *accountInfo, branch,
 func (s *ScopedKeyManager) loadAccountInfo(ns walletdb.ReadBucket,
 	account uint32) (*accountInfo, error) {
 
+	//fmt.Println("loadAccountInfo",account)
 	// Return the account info from cache if it's available.
 	if acctInfo, ok := s.acctInfo[account]; ok {
 		return acctInfo, nil
@@ -654,6 +655,10 @@ func (s *ScopedKeyManager) nextAddresses(ns walletdb.ReadWriteBucket,
 
 	// The next address can only be generated for accounts that have
 	// already been created.
+	//if account == ImportedAddrAccount {
+	//	managedAddresses := make([]ManagedAddress, 0)
+	//	return managedAddresses ,nil
+	//}
 	acctInfo, err := s.loadAccountInfo(ns, account)
 	if err != nil {
 		return nil, err

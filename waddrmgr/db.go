@@ -1576,8 +1576,7 @@ func forEachAccountAddress(ns walletdb.ReadBucket, scope *KeyScope,
 		return err
 	}
 
-	bucket := scopedBucket.NestedReadBucket(addrAcctIdxBucketName).
-		NestedReadBucket(uint32ToBytes(account))
+	bucket := scopedBucket.NestedReadBucket(addrAcctIdxBucketName).NestedReadBucket(uint32ToBytes(account))
 
 	// If index bucket is missing the account, there hasn't been any
 	// address entries yet

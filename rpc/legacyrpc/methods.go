@@ -417,6 +417,7 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 		return nil, err
 	}
 
+	fmt.Println("account", account)
 	addrs, err := w.AccountAddresses(account)
 	if err != nil {
 		return nil, err
@@ -427,6 +428,12 @@ func getAddressesByAccount(icmd interface{}, w *wallet.Wallet) (interface{}, err
 		addrStrs[i] = a.EncodeAddress()
 	}
 	return addrStrs, nil
+}
+
+func printAddrs(w *wallet.Wallet) {
+	addrs, _ := w.AccountAddresses(waddrmgr.ImportedAddrAccount)
+	fmt.Println("ImportedAddrAccount", waddrmgr.ImportedAddrAccount, "len", len(addrs))
+
 }
 
 // getBalance handles a getbalance request by returning the balance for an
@@ -625,9 +632,11 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 			Message: "Key is not intended for " + w.ChainParams().Name,
 		}
 	}
-
+	printAddrs(w)
 	// Import the private key, handling any errors.
 	_, err = w.ImportPrivateKey(waddrmgr.KeyScopeBIP0044, wif, nil, *cmd.Rescan)
+
+	printAddrs(w)
 	switch {
 	case waddrmgr.IsError(err, waddrmgr.ErrDuplicateAddress):
 		// Do not return duplicate key errors to the client.
@@ -635,7 +644,7 @@ func importPrivKey(icmd interface{}, w *wallet.Wallet) (interface{}, error) {
 	case waddrmgr.IsError(err, waddrmgr.ErrLocked):
 		return nil, &ErrWalletUnlockNeeded
 	}
-
+	printAddrs(w)
 	return nil, err
 }
 
