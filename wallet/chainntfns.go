@@ -138,7 +138,7 @@ func (w *Wallet) handleChainNotifications() {
 				})
 				notificationName = "blockdisconnected"
 			case chain.RelevantTx:
-				w.syncInterruptChan <- struct{}{}
+				w.InterruptChan()
 				w.syncLock.Lock()
 				err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 					return w.addRelevantTx(tx, n.TxRecord, n.Block)

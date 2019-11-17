@@ -3427,7 +3427,7 @@ func (w *Wallet) reliablyPublishTransaction(tx *wire.MsgTx) (*chainhash.Hash, er
 	if err != nil {
 		return nil, err
 	}
-	w.syncInterruptChan <- struct{}{}
+	w.InterruptChan()
 	w.syncLock.Lock()
 	defer w.syncLock.Unlock()
 	err = walletdb.Update(w.db, func(dbTx walletdb.ReadWriteTx) error {
@@ -3551,6 +3551,13 @@ func (w *Wallet) publishTransaction(tx *wire.MsgTx) (*chainhash.Hash, error) {
 		}
 
 		return nil, err
+	}
+}
+
+func (w *Wallet) InterruptChan() {
+	select {
+	case w.syncInterruptChan <- struct{}{}:
+	default:
 	}
 }
 
@@ -3706,7 +3713,7 @@ func Open(db walletdb.DB, pubPass []byte, cbs *waddrmgr.OpenCallbacks,
 		changePassphrases:   make(chan changePassphrasesRequest),
 		chainParams:         params,
 		quit:                make(chan struct{}),
-		syncInterruptChan:   make(chan struct{}, 10000),
+		syncInterruptChan:   make(chan struct{}, 100),
 	}
 
 	w.NtfnServer = newNotificationServer(w)
