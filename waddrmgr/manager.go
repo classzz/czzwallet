@@ -1604,19 +1604,6 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 		return err
 	}
 
-	//importAcctKeyPriv, err := deriveAccountKey(coinTypeKeyPriv, ImportedAddrAccount)
-	//if err != nil {
-	//	// The seed is unusable if the any of the children in the
-	//	// required hierarchy can't be derived due to invalid child.
-	//	if err == hdkeychain.ErrInvalidChild {
-	//		str := "the provided seed is unusable"
-	//		return managerError(ErrKeyChain, str,
-	//			hdkeychain.ErrUnusableSeed)
-	//	}
-	//
-	//	return err
-	//}
-
 	// Ensure the branch keys can be derived for the provided seed according
 	// to our BIP0044-like derivation.
 	if err := checkBranchKeys(acctKeyPriv); err != nil {
@@ -1637,13 +1624,6 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 		str := "failed to convert private key for account 0"
 		return managerError(ErrKeyChain, str, err)
 	}
-
-	// The address manager needs the public extended key for the account.
-	//importAcctKeyPub, err := importAcctKeyPriv.Neuter()
-	//if err != nil {
-	//	str := "failed to convert private key for account 0"
-	//	return managerError(ErrKeyChain, str, err)
-	//}
 
 	// Encrypt the cointype keys with the associated crypto keys.
 	coinTypeKeyPub, err := coinTypeKeyPriv.Neuter()
@@ -1673,18 +1653,6 @@ func createManagerKeyScope(ns walletdb.ReadWriteBucket,
 		str := "failed to encrypt private key for account 0"
 		return managerError(ErrCrypto, str, err)
 	}
-
-	//importAcctPubEnc, err := cryptoKeyPub.Encrypt([]byte(importAcctKeyPub.String()))
-	//if err != nil {
-	//	str := "failed to  encrypt public key for account 0"
-	//	return managerError(ErrCrypto, str, err)
-	//}
-	//
-	//importAcctPrivEnc, err := cryptoKeyPriv.Encrypt([]byte(importAcctKeyPriv.String()))
-	//if err != nil {
-	//	str := "failed to encrypt private key for account 0"
-	//	return managerError(ErrCrypto, str, err)
-	//}
 
 	// Save the encrypted cointype keys to the database.
 	err = putCoinTypeKeys(ns, &scope, coinTypePubEnc, coinTypePrivEnc)
