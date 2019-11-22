@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/classzz/classzz/wire"
+	"math/big"
 )
 
 // AddNodeSubCmd defines the type used in the addnode JSON-RPC command for the
@@ -62,23 +63,24 @@ type CreateRawTransactionCmd struct {
 }
 
 type EntangleOut struct {
-	ExTxType  uint8  `json:"extxtype"`
-	Index     uint32 `json:"index"`
-	Height    uint64 `json:"height"`
-	Amount    uint64 `json:"amount"`
-	ExtTxHash string `json:"exttxhash"`
+	ExTxType  uint8    `json:"extxtype"`
+	Index     uint32   `json:"index"`
+	Height    uint64   `json:"height"`
+	Amount    *big.Int `json:"amount"`
+	ExtTxHash string   `json:"exttxhash"`
 }
 
 func (info *EntangleOut) Serialize() []byte {
 	buf := new(bytes.Buffer)
 
-	buf.WriteByte(byte(info.ExTxType))
+	buf.WriteByte(info.ExTxType)
 	binary.Write(buf, binary.LittleEndian, info.Index)
 	binary.Write(buf, binary.LittleEndian, info.Height)
-	b1 := info.Amount
-	buf.WriteByte(byte(b1))
+	b1 := info.Amount.Bytes()
+	len := uint8(len(b1))
+	buf.WriteByte(len)
 
-	//buf.Write(b1)
+	buf.Write(b1)
 	ExtTxHash := []byte(info.ExtTxHash)
 	buf.Write(ExtTxHash)
 	return buf.Bytes()
@@ -186,6 +188,17 @@ func NewGetBlockCmd(hash string, verbosity *uint32) *GetBlockCmd {
 	return &GetBlockCmd{
 		Hash:      hash,
 		Verbosity: verbosity,
+	}
+}
+
+// GetBlockCmd defines the getblock JSON-RPC command.
+type GetDogecoinBlockCmd struct {
+	Hash string
+}
+
+func NewGetDogecoinBlockCmd(hash string) *GetDogecoinBlockCmd {
+	return &GetDogecoinBlockCmd{
+		Hash: hash,
 	}
 }
 
@@ -482,6 +495,15 @@ type GetPeerInfoCmd struct{}
 // JSON-RPC command.
 func NewGetPeerInfoCmd() *GetPeerInfoCmd {
 	return &GetPeerInfoCmd{}
+}
+
+// GetPeerInfoCmd defines the getpeerinfo JSON-RPC command.
+type GetEntangleInfoCmd struct{}
+
+// NewGetPeerInfoCmd returns a new instance which can be used to issue a getpeer
+// JSON-RPC command.
+func NewGetEntangleInfoCmd() *GetEntangleInfoCmd {
+	return &GetEntangleInfoCmd{}
 }
 
 // GetRawMempoolCmd defines the getmempool JSON-RPC command.
@@ -842,6 +864,7 @@ func init() {
 	MustRegisterCmd("getaddednodeinfo", (*GetAddedNodeInfoCmd)(nil), flags)
 	MustRegisterCmd("getbestblockhash", (*GetBestBlockHashCmd)(nil), flags)
 	MustRegisterCmd("getblock", (*GetBlockCmd)(nil), flags)
+	MustRegisterCmd("getdogeblock", (*GetDogecoinBlockCmd)(nil), flags)
 	MustRegisterCmd("getblockchaininfo", (*GetBlockChainInfoCmd)(nil), flags)
 	MustRegisterCmd("getblockcount", (*GetBlockCountCmd)(nil), flags)
 	MustRegisterCmd("getblockhash", (*GetBlockHashCmd)(nil), flags)
@@ -855,6 +878,7 @@ func init() {
 	MustRegisterCmd("getgenerate", (*GetGenerateCmd)(nil), flags)
 	MustRegisterCmd("gethashespersec", (*GetHashesPerSecCmd)(nil), flags)
 	MustRegisterCmd("getinfo", (*GetInfoCmd)(nil), flags)
+	MustRegisterCmd("getentangleinfo", (*GetEntangleInfoCmd)(nil), flags)
 	MustRegisterCmd("getmempoolentry", (*GetMempoolEntryCmd)(nil), flags)
 	MustRegisterCmd("getmempoolinfo", (*GetMempoolInfoCmd)(nil), flags)
 	MustRegisterCmd("getmininginfo", (*GetMiningInfoCmd)(nil), flags)

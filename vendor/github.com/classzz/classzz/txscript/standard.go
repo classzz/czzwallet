@@ -5,6 +5,7 @@
 package txscript
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/classzz/classzz/chaincfg"
@@ -180,6 +181,13 @@ func isEntangleTy(pops []parsedOpcode) bool {
 		pops[1].opcode.value == OP_UNKNOWN193
 }
 
+func isKeepedAmountInfo(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 2 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN194
+}
+
 // scriptType returns the type of the script being inspected from the known
 // standard types.
 func typeOfScript(pops []parsedOpcode) ScriptClass {
@@ -208,6 +216,14 @@ func GetScriptClass(script []byte) ScriptClass {
 		return NonStandardTy
 	}
 	return typeOfScript(pops)
+}
+
+func IsEntangleTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isEntangleTy(pops)
 }
 
 // expectedInputs returns the number of arguments required by a script.
@@ -433,6 +449,16 @@ func EntangleScript(data []byte) ([]byte, error) {
 	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN193).AddData(data).Script()
 }
 
+// KeepedAmountScript impl in
+func KeepedAmountScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN194).AddData(data).Script()
+}
+
 // NullDataScript creates a provably-prunable script containing OP_RETURN
 // followed by the passed data.  An Error with the error code ErrTooMuchNullData
 // will be returned if the length of the passed data exceeds MaxDataCarrierSize.
@@ -466,6 +492,26 @@ func MultiSigScript(pubkeys []*czzutil.AddressPubKey, nrequired int) ([]byte, er
 	builder.AddOp(OP_CHECKMULTISIG)
 
 	return builder.Script()
+}
+func GetKeepedAmountData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isKeepedAmountInfo(pops) {
+		return nil, errors.New("not keepedAmount info type")
+	}
+	return pops[2].data, nil
+}
+func GetEntangleInfoData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isEntangleTy(pops) {
+		return nil, errors.New("not Entangle info type")
+	}
+	return pops[2].data, nil
 }
 
 // PushedData returns an array of byte slices containing any pushed data found
@@ -568,6 +614,34 @@ func ExtractPkScriptAddrs(pkScript []byte, chainParams *chaincfg.Params) (Script
 	}
 
 	return scriptClass, addrs, requiredSigs, nil
+}
+
+func ExtractPkScriptPub(pkScript []byte) (ScriptClass, []byte, error) {
+
+	pops, err := parseScript(pkScript)
+	if err != nil {
+		return NonStandardTy, nil, err
+	}
+
+	scriptClass := typeOfScript(pops)
+	switch scriptClass {
+	case PubKeyHashTy:
+		// A pay-to-pubkey-hash script is of the form:
+		//  OP_DUP OP_HASH160 <hash> OP_EQUALVERIFY OP_CHECKSIG
+		// Therefore the pubkey hash is the 3rd item on the stack.
+		// Skip the pubkey hash if it's invalid for some reason.
+		return PubKeyHashTy, pops[2].data, nil
+
+	case ScriptHashTy:
+		// A pay-to-script-hash script is of the form:
+		//  OP_HASH160 <scripthash> OP_EQUAL
+		// Therefore the script hash is the 2nd item on the stack.
+		// Skip the script hash if it's invalid for some reason.
+		return ScriptHashTy, pops[1].data, nil
+	}
+
+	return NonStandardTy, nil, errors.New("outScript not PubKeyHashTy or ScriptHashTy")
+
 }
 
 // AtomicSwapDataPushes houses the data pushes found in atomic swap contracts.

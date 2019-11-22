@@ -2,8 +2,10 @@ package txscript
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/classzz/classzz/wire"
 
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/czzec"
@@ -196,6 +198,44 @@ func ComputePkScript(sigScript []byte) (PkScript, error) {
 	}
 
 	return pkScript, ErrUnsupportedScriptType
+}
+
+func ComputePk(sigScript []byte) ([]byte, error) {
+
+	// Ensure that either an input's signature script or a witness was
+	// provided.
+	if len(sigScript) == 0 {
+		return nil, ErrUnsupportedScriptType
+	}
+
+	// We'll start by checking the input's signature script, if provided.
+	if len(sigScript) == pubKeyHashSigScriptLen || len(sigScript) == pubKeyHashSigScriptLen+1 {
+
+		// The public key should be found as the last part of the
+		// signature script. We'll attempt to parse it to ensure this is
+		// a P2PKH redeem script.
+		pubKey := sigScript[len(sigScript)-compressedPubKeyLen:]
+		if czzec.IsCompressedPubKey(pubKey) {
+			return pubKey, nil
+		}
+	}
+
+	return nil, ErrUnsupportedScriptType
+}
+
+// computeWitnessPk computes the script of an output by looking at the
+// spending input's witness.
+func ComputeWitnessPk(witness wire.TxWitness) ([]byte, error) {
+	// We'll use the last item of the witness stack to determine the proper
+	// witness type.
+	lastWitnessItem := witness[len(witness)-1]
+	if len(witness) == 2 && len(lastWitnessItem) == compressedPubKeyLen {
+		fmt.Println(hex.EncodeToString(lastWitnessItem))
+		if czzec.IsCompressedPubKey(lastWitnessItem) {
+			return lastWitnessItem, nil
+		}
+	}
+	return nil, nil
 }
 
 // hash160 returns the RIPEMD160 hash of the SHA-256 HASH of the given data.

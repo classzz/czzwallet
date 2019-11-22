@@ -94,9 +94,11 @@ const (
 	// 68, 112, and 113.
 	DeploymentCSV
 
+	//Ensure that the time of the parent block is less than the current time
+	DeploymentSEQ
+
 	// NOTE: DefinedDeployments must always come last since it is used to
 	// determine how many defined deployments there currently are.
-
 	// DefinedDeployments is the number of currently defined deployments.
 	DefinedDeployments
 )
@@ -177,6 +179,8 @@ type Params struct {
 	// GenerateSupported specifies whether or not CPU mining is allowed.
 	GenerateSupported bool
 
+	EntangleHeight int32
+
 	// Checkpoints ordered from oldest to newest.
 	Checkpoints []Checkpoint
 
@@ -240,8 +244,16 @@ var MainNetParams = Params{
 	TargetTimePerBlock:       30, // 10 minutes
 	GenerateSupported:        true,
 
+	EntangleHeight: 120000,
 	// Checkpoints ordered from oldest to newest.
-	Checkpoints: []Checkpoint{},
+	Checkpoints: []Checkpoint{
+		{Height: 11111, Hash: newHashFromStr("1faf0d2246f07608c6a97a6ca698055a89d07f84c52db4455addad0cc86175aa")},
+		{Height: 33333, Hash: newHashFromStr("cf3de795f31dbc20fbefc0e1b8aeeb07c41fc7e8ef748c9e7d74af767beaf1d2")},
+		{Height: 74000, Hash: newHashFromStr("0e14e6a7afb47846296111d2ade1b75527a96e898c11a8422325aad480adcc1d")},
+		{Height: 85000, Hash: newHashFromStr("bdf3bc34deb6a19df11f626cc18c5230777124cb2a83c0c3bca90dd2b523a417")},
+		{Height: 91000, Hash: newHashFromStr("676e45ca46d01099763a4b693d7aa63068e3280a9c6f576dd0fade5d01cc1439")},
+		{Height: 115000, Hash: newHashFromStr("e81a79583cf50d5f251b596141803efcf0ee48a10665f16adfeff4a02855392d")},
+	},
 
 	// Consensus rule change deployments.
 	//
@@ -259,6 +271,11 @@ var MainNetParams = Params{
 			BitNumber:  0,
 			StartTime:  1462060800, // May 1st, 2016
 			ExpireTime: 1493596800, // May 1st, 2017
+		},
+		DeploymentSEQ: {
+			BitNumber:  0,
+			StartTime:  1572868800,    //
+			ExpireTime: math.MaxInt64, // Never expires
 		},
 	},
 
