@@ -113,7 +113,7 @@ var _ Interface = (*BitcoindClient)(nil)
 
 // BackEnd returns the name of the driver.
 func (c *BitcoindClient) BackEnd() string {
-	return "bitcoind"
+	return "czzd"
 }
 
 // GetBestBlock returns the highest block known to bitcoind.
@@ -143,7 +143,7 @@ func (c *BitcoindClient) GetBlockHeight(hash *chainhash.Hash) (int32, error) {
 }
 
 // GetBlock returns a block from the hash.
-func (c *BitcoindClient) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
+func (c *BitcoindClient) GetBlock(hash string) (*wire.MsgBlock, error) {
 	return c.chainConn.client.GetBlock(hash)
 }
 
@@ -328,7 +328,7 @@ func (c *BitcoindClient) RescanBlocks(
 			continue
 		}
 
-		block, err := c.GetBlock(&hash)
+		block, err := c.GetBlock(hash.String())
 		if err != nil {
 			log.Warnf("Unable to get block %s from bitcoind: %s",
 				hash, err)
@@ -767,7 +767,7 @@ func (c *BitcoindClient) reorg(currentBlock waddrmgr.BlockStamp,
 	blocksToNotify.PushFront(reorgBlock)
 	previousBlock := reorgBlock.Header.PrevBlock
 	for i := bestHeight - 1; i >= currentBlock.Height; i-- {
-		block, err := c.GetBlock(&previousBlock)
+		block, err := c.GetBlock(previousBlock.String())
 		if err != nil {
 			return err
 		}
@@ -812,7 +812,7 @@ func (c *BitcoindClient) reorg(currentBlock waddrmgr.BlockStamp,
 
 		// Store the correct block in our list in order to notify it
 		// once we've found our common ancestor.
-		block, err := c.GetBlock(&previousBlock)
+		block, err := c.GetBlock(previousBlock.String())
 		if err != nil {
 			return err
 		}
@@ -879,7 +879,7 @@ func (c *BitcoindClient) FilterBlocks(
 	for i, block := range req.Blocks {
 		// TODO(conner): add prefetching, since we already know we'll be
 		// fetching *every* block
-		rawBlock, err := c.GetBlock(&block.Hash)
+		rawBlock, err := c.GetBlock(block.Hash.String())
 		if err != nil {
 			return nil, err
 		}
@@ -989,7 +989,7 @@ func (c *BitcoindClient) rescan(start chainhash.Hash) error {
 		}
 
 		if afterBirthday {
-			block, err = c.GetBlock(hash)
+			block, err = c.GetBlock(hash.String())
 			if err != nil {
 				return err
 			}
@@ -1012,7 +1012,7 @@ func (c *BitcoindClient) rescan(start chainhash.Hash) error {
 			if err != nil {
 				return err
 			}
-			block, err = c.GetBlock(hash)
+			block, err = c.GetBlock(hash.String())
 			if err != nil {
 				return err
 			}

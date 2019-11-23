@@ -969,10 +969,13 @@ func (s *ChainService) GetBlock(blockHash chainhash.Hash,
 					block.SetHeight(int32(height))
 				}
 
+				prevHeader, _, _ := s.BlockHeaders.FetchHeader(&block.MsgBlock().Header.PrevBlock)
 				// If this claims our block but doesn't pass
 				// the sanity check, the peer is trying to
 				// bamboozle us. Disconnect it.
 				if err := blockchain.CheckBlockSanity(
+					&s.chainParams,
+					prevHeader,
 					block,
 					// We don't need to check PoW because
 					// by the time we get here, it's been

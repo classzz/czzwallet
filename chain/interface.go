@@ -15,7 +15,7 @@ import (
 func BackEnds() []string {
 	return []string{
 		"bitcoind",
-		"bchd",
+		"czzd",
 		"neutrino",
 	}
 }
@@ -28,7 +28,7 @@ type Interface interface {
 	Stop()
 	WaitForShutdown()
 	GetBestBlock() (*chainhash.Hash, int32, error)
-	GetBlock(*chainhash.Hash) (*wire.MsgBlock, error)
+	GetBlock(string) (*wire.MsgBlock, error)
 	GetBlockHash(int64) (*chainhash.Hash, error)
 	GetBlockHeader(*chainhash.Hash) (*wire.BlockHeader, error)
 	FilterBlocks(*FilterBlocksRequest) (*FilterBlocksResponse, error)

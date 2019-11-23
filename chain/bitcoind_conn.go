@@ -181,7 +181,7 @@ func (c *BitcoindConn) blockEventHandler(conn *gozmq.Conn) {
 		}
 
 		// Poll an event from the ZMQ socket.
-		msgBytes, err := conn.Receive()
+		msgBytes, err := conn.Receive(nil)
 		if err != nil {
 			// It's possible that the connection to the socket
 			// continuously times out, so we'll prevent logging this
@@ -257,7 +257,7 @@ func (c *BitcoindConn) txEventHandler(conn *gozmq.Conn) {
 		}
 
 		// Poll an event from the ZMQ socket.
-		msgBytes, err := conn.Receive()
+		msgBytes, err := conn.Receive(nil)
 		if err != nil {
 			// It's possible that the connection to the socket
 			// continuously times out, so we'll prevent logging this

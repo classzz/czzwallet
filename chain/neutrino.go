@@ -106,11 +106,13 @@ func (s *NeutrinoClient) WaitForShutdown() {
 }
 
 // GetBlock replicates the RPC client's GetBlock command.
-func (s *NeutrinoClient) GetBlock(hash *chainhash.Hash) (*wire.MsgBlock, error) {
+func (s *NeutrinoClient) GetBlock(hash string) (*wire.MsgBlock, error) {
 	// TODO(roasbeef): add a block cache?
 	//  * which evication strategy? depends on use case
-	//  Should the block cache be INSIDE neutrino instead of in bchwallet?
-	block, err := s.CS.GetBlock(*hash)
+	//  Should the block cache be INSIDE neutrino instead of in czzwallet?
+
+	hash_, _ := chainhash.NewHashFromStr(hash)
+	block, err := s.CS.GetBlock(*hash_)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +220,7 @@ func (s *NeutrinoClient) FilterBlocks(
 
 		// TODO(conner): can optimize bandwidth by only fetching
 		// stripped blocks
-		rawBlock, err := s.GetBlock(&blk.Hash)
+		rawBlock, err := s.GetBlock(blk.Hash.String())
 		if err != nil {
 			return nil, err
 		}

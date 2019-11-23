@@ -28,7 +28,7 @@ func (m *mockChainClient) GetBestBlock() (*chainhash.Hash, int32, error) {
 	return nil, 0, nil
 }
 
-func (m *mockChainClient) GetBlock(*chainhash.Hash) (*wire.MsgBlock, error) {
+func (m *mockChainClient) GetBlock(string) (*wire.MsgBlock, error) {
 	return nil, nil
 }
 
