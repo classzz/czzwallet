@@ -45,3 +45,4 @@ func MakeAddress(puk ecdsa.PublicKey) (error, czzutil.Address) {
 	}
 
 }
+
