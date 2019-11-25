@@ -120,11 +120,11 @@ func NewServer(opts *Options, walletLoader *wallet.Loader, listeners []net.Liste
 			w.Header().Set("Content-Type", "application/json")
 			r.Close = true
 
-			//if err := server.checkAuthHeader(r); err != nil {
-			//	log.Warnf("Unauthorized client connection attempt")
-			//	jsonAuthFail(w)
-			//	return
-			//}
+			if err := server.checkAuthHeader(r); err != nil {
+				log.Warnf("Unauthorized client connection attempt")
+				jsonAuthFail(w)
+				return
+			}
 			server.wg.Add(1)
 			server.postClientRPC(w, r)
 			server.wg.Done()
