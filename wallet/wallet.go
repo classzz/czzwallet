@@ -3298,9 +3298,9 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, inputValues []int64, hashType t
 				if len(additionalKeysByAddress) != 0 {
 					addrStr := addr.EncodeAddress()
 					wif, ok := additionalKeysByAddress[addrStr]
-					fmt.Println("wif:", wif.String())
+					//fmt.Println("wif:", wif.String())
 					pk := (*czzec.PublicKey)(&wif.PrivKey.PublicKey).SerializeCompressed()
-					fmt.Println("pub:", hex.EncodeToString(pk))
+					//fmt.Println("pub:", hex.EncodeToString(pk))
 
 					address, err1 := czzutil.NewAddressPubKeyHash(
 						czzutil.Hash160(pk), &chaincfg.MainNetParams)
