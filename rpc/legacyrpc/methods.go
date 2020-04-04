@@ -1682,15 +1682,17 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 				return nil, DeserializationError{err}
 			}
 
+			param := w.ChainParams()
 			if !wif.IsForNet(w.ChainParams()) {
-				s := "key network doesn't match wallet's"
+				s := "key network doesn't match wallet's" + param.Name
 				return nil, DeserializationError{errors.New(s)}
 			}
 
 			//addr, err := czzutil.NewAddressPubKey(wif.SerializePubKey(),
 			//	w.ChainParams())
 			address, err := czzutil.NewAddressPubKeyHash(
-				czzutil.Hash160(wif.SerializePubKey()), &chaincfg.MainNetParams)
+				czzutil.Hash160(wif.SerializePubKey()), w.ChainParams())
+
 			if err != nil {
 				return nil, DeserializationError{err}
 			}

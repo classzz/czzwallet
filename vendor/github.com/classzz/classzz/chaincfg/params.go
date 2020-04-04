@@ -483,7 +483,7 @@ var SimNetParams = Params{
 	// The miner confirmation window is defined as:
 	//   target proof of work timespan / target proof of work spacing
 	RuleChangeActivationThreshold: 75, // 75% of MinerConfirmationWindow
-	MinerConfirmationWindow:       100,
+	MinerConfirmationWindow:       14,
 	Deployments: [DefinedDeployments]ConsensusDeployment{
 		DeploymentTestDummy: {
 			BitNumber:  28,

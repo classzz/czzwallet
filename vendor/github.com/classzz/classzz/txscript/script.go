@@ -7,6 +7,7 @@ package txscript
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/classzz/classzz/chaincfg/chainhash"
@@ -598,6 +599,8 @@ func calcBip143SignatureHash(subScript []parsedOpcode, sigHashes *TxSigHashes,
 	var bHashType [4]byte
 	binary.LittleEndian.PutUint32(bHashType[:], uint32(hashType))
 	sigHash.Write(bHashType[:])
+
+	fmt.Println("sigHashBytes:",sigHash.Bytes(),",hex:",hex.EncodeToString(sigHash.Bytes()),"DoubleHashB",chainhash.DoubleHashB(sigHash.Bytes()))
 
 	return chainhash.DoubleHashB(sigHash.Bytes()), nil
 }
