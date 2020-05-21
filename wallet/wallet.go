@@ -3302,13 +3302,12 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, inputValues []int64, hashType t
 					pk := (*czzec.PublicKey)(&wif.PrivKey.PublicKey).SerializeCompressed()
 					//fmt.Println("pub:", hex.EncodeToString(pk))
 
-					address, err1 := czzutil.NewAddressPubKeyHash(
-						czzutil.Hash160(pk), &chaincfg.MainNetParams)
+					_, err := czzutil.NewAddressPubKeyHash(
+						czzutil.Hash160(pk), w.chainParams)
 
-					if err1 != nil {
-						log.Errorf("failed to make address for: %v", err1)
+					if err != nil {
+						log.Errorf("failed to make address for: %v", err)
 					}
-					fmt.Println(address.String())
 
 					if !ok {
 						return nil, false,
