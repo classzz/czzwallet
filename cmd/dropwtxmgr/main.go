@@ -20,7 +20,7 @@ import (
 
 const defaultNet = "mainnet"
 
-var datadir = czzutil.AppDataDir("bchwallet", false)
+var datadir = czzutil.AppDataDir("czzwallet", false)
 
 // Flags.
 var opts = struct {
@@ -75,7 +75,7 @@ func mainInt() int {
 	}
 
 	for !opts.Force {
-		fmt.Print("Drop all bchwallet transaction history? [y/N] ")
+		fmt.Print("Drop all czzwallet transaction history? [y/N] ")
 
 		scanner := bufio.NewScanner(bufio.NewReader(os.Stdin))
 		if !scanner.Scan() {
@@ -106,7 +106,7 @@ func mainInt() int {
 	}
 	defer db.Close()
 
-	fmt.Println("Dropping btcwallet transaction history")
+	fmt.Println("Dropping czzwallet transaction history")
 
 	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
 		err := tx.DeleteTopLevelBucket(wtxmgrNamespace)
