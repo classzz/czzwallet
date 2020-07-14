@@ -85,7 +85,7 @@ func init() {
 	}
 	var activeNet = &netparams.MainNetParams
 	if opts.TestNet3 {
-		activeNet = &netparams.TestNet3Params
+		activeNet = &netparams.TestNetParams
 	} else if opts.SimNet {
 		activeNet = &netparams.SimNetParams
 	}

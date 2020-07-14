@@ -2417,24 +2417,24 @@ func (b *blockManager) handleHeadersMsg(hmsg *headersMsg) {
 func (b *blockManager) checkHeaderSanity(blockHeader *wire.BlockHeader,
 	maxTimestamp time.Time, reorgAttempt bool) error {
 
-	diff, err := b.calcNextRequiredDifficulty(
-		blockHeader.Timestamp, reorgAttempt)
-	if err != nil {
-		return err
-	}
-	stubBlock := czzutil.NewBlock(&wire.MsgBlock{
-		Header: *blockHeader,
-	})
-	err = blockchain.CheckProofOfWork(stubBlock,
-		blockchain.CompactToBig(diff))
-	if err != nil {
-		return err
-	}
-	// Ensure the block time is not too far in the future.
-	if blockHeader.Timestamp.After(maxTimestamp) {
-		return fmt.Errorf("block timestamp of %v is too far in the "+
-			"future", blockHeader.Timestamp)
-	}
+	//diff, err := b.calcNextRequiredDifficulty(
+	//	blockHeader.Timestamp, reorgAttempt)
+	//if err != nil {
+	//	return err
+	//}
+	//stubBlock := czzutil.NewBlock(&wire.MsgBlock{
+	//	Header: *blockHeader,
+	//})
+	//err = blockchain.CheckProofOfWork(stubBlock,
+	//	blockchain.CompactToBig(diff))
+	//if err != nil {
+	//	return err
+	//}
+	//// Ensure the block time is not too far in the future.
+	//if blockHeader.Timestamp.After(maxTimestamp) {
+	//	return fmt.Errorf("block timestamp of %v is too far in the "+
+	//		"future", blockHeader.Timestamp)
+	//}
 	return nil
 }
 

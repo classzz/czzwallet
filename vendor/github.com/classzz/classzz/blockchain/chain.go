@@ -229,7 +229,7 @@ type BlockChain struct {
 	fastSyncDone chan struct{}
 
 	//
-	entangleVerify *cross.EntangleVerify
+	exChangeVerify *cross.ExChangeVerify
 }
 
 // HaveBlock returns whether or not the chain instance has the block represented
@@ -1226,6 +1226,19 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *czzutil.Block, fla
 	// We are extending the main (best) chain with a new block.  This is the
 	// most common case.
 	parentHash := &block.MsgBlock().Header.PrevBlock
+
+	err := b.db.Update(func(dbTx database.Tx) error {
+		err := dbBeaconTx(dbTx, block)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return false, err
+	}
+
 	if parentHash.IsEqual(&b.bestChain.Tip().hash) {
 		// Skip checks if node has already been fully validated.
 		fastAdd = fastAdd || b.index.NodeStatus(node).KnownValid()
@@ -1328,7 +1341,7 @@ func (b *BlockChain) connectBestChain(node *blockNode, block *czzutil.Block, fla
 
 	// Reorganize the chain.
 	log.Infof("REORGANIZE: Block %v is causing a reorganize.", node.hash)
-	err := b.reorganizeChain(detachNodes, attachNodes)
+	err = b.reorganizeChain(detachNodes, attachNodes)
 
 	// Either getReorganizeNodes or reorganizeChain could have made unsaved
 	// changes to the block index, so flush regardless of whether there was an
@@ -1463,6 +1476,20 @@ func (b *BlockChain) BlockHeightByHash(hash *chainhash.Hash) (int32, error) {
 	node := b.index.LookupNode(hash)
 	if node == nil || !b.bestChain.Contains(node) {
 		str := fmt.Sprintf("block %s is not in the main chain", hash)
+		return 0, errNotInMainChain(str)
+	}
+
+	return node.height, nil
+}
+
+// BlockHeightByHash returns the height of the block with the given hash in the
+// main chain.
+//
+// This function is safe for concurrent access.
+func (b *BlockChain) BlockHeightByHashAll(hash *chainhash.Hash) (int32, error) {
+	node := b.index.LookupNode(hash)
+	if node == nil {
+		str := fmt.Sprintf("block %s is not in the chain", hash)
 		return 0, errNotInMainChain(str)
 	}
 
@@ -2189,22 +2216,30 @@ type Config struct {
 	// the UTXO set in fast sync mode.
 	Proxy string
 
-	//
-	DogeCoinRPC []string
-
-	//
+	// doge
+	DogeCoinRPC     []string
 	DogeCoinRPCUser string
-
-	//
 	DogeCoinRPCPass string
 
-	LtcCoinRPC []string
-
-	//
+	// ltc
+	LtcCoinRPC     []string
 	LtcCoinRPCUser string
-
-	//
 	LtcCoinRPCPass string
+
+	// btc
+	BtcCoinRPC     []string
+	BtcCoinRPCUser string
+	BtcCoinRPCPass string
+
+	// bch
+	BchCoinRPC     []string
+	BchCoinRPCUser string
+	BchCoinRPCPass string
+
+	// bsv
+	BsvCoinRPC     []string
+	BsvCoinRPCUser string
+	BsvCoinRPCPass string
 }
 
 // New returns a BlockChain instance using the provided configuration details.
@@ -2242,7 +2277,6 @@ func New(config *Config) (*BlockChain, error) {
 	}
 
 	var dogeclients []*rpcclient.Client
-
 	for _, dogerpc := range config.DogeCoinRPC {
 		// Connect to local bitcoin core RPC server using HTTP POST mode.
 		connCfg := &rpcclient.ConnConfig{
@@ -2267,7 +2301,6 @@ func New(config *Config) (*BlockChain, error) {
 	}
 
 	var ltcclients []*rpcclient.Client
-
 	for _, ltcrpc := range config.LtcCoinRPC {
 		// Connect to local bitcoin core RPC server using HTTP POST mode.
 		connCfg := &rpcclient.ConnConfig{
@@ -2291,17 +2324,94 @@ func New(config *Config) (*BlockChain, error) {
 		ltcclients = append(ltcclients, client)
 	}
 
+	var btcclients []*rpcclient.Client
+	for _, btcrpc := range config.BtcCoinRPC {
+		// Connect to local bitcoin core RPC server using HTTP POST mode.
+		connCfg := &rpcclient.ConnConfig{
+			Host:         btcrpc,
+			Endpoint:     "ws",
+			User:         config.BtcCoinRPCUser,
+			Pass:         config.BtcCoinRPCPass,
+			HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
+			DisableTLS:   true, // Bitcoin core does not provide TLS by default
+		}
+		if err := rpcclient.HttpClientTest(connCfg); err != nil {
+			log.Warn(err)
+		}
+		// Notice the notification parameter is nil since notifications are
+		// not supported in HTTP POST mode.
+		client, err := rpcclient.New(connCfg, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		btcclients = append(btcclients, client)
+	}
+
+	var bchclients []*rpcclient.Client
+	for _, bchrpc := range config.BchCoinRPC {
+		// Connect to local bitcoin core RPC server using HTTP POST mode.
+		connCfg := &rpcclient.ConnConfig{
+			Host:         bchrpc,
+			Endpoint:     "ws",
+			User:         config.BchCoinRPCUser,
+			Pass:         config.BchCoinRPCPass,
+			HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
+			DisableTLS:   true, // Bitcoin core does not provide TLS by default
+		}
+		if err := rpcclient.HttpClientTest(connCfg); err != nil {
+			log.Warn(err)
+		}
+		// Notice the notification parameter is nil since notifications are
+		// not supported in HTTP POST mode.
+		client, err := rpcclient.New(connCfg, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		bchclients = append(bchclients, client)
+	}
+
+	var bsvclients []*rpcclient.Client
+	for _, bsvrpc := range config.BsvCoinRPC {
+		// Connect to local bitcoin core RPC server using HTTP POST mode.
+		connCfg := &rpcclient.ConnConfig{
+			Host:         bsvrpc,
+			Endpoint:     "ws",
+			User:         config.BsvCoinRPCUser,
+			Pass:         config.BsvCoinRPCPass,
+			HTTPPostMode: true, // Bitcoin core only supports HTTP POST mode
+			DisableTLS:   true, // Bitcoin core does not provide TLS by default
+		}
+		if err := rpcclient.HttpClientTest(connCfg); err != nil {
+			log.Warn(err)
+		}
+		// Notice the notification parameter is nil since notifications are
+		// not supported in HTTP POST mode.
+		client, err := rpcclient.New(connCfg, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		bsvclients = append(bsvclients, client)
+	}
+
 	cacheEntangleInfo := &cross.CacheEntangleInfo{
 		DB: config.DB,
 	}
 
-	entangleVerify := &cross.EntangleVerify{
+	params := config.ChainParams
+
+	exChangeVerify := &cross.ExChangeVerify{
 		DogeCoinRPC: dogeclients,
 		LtcCoinRPC:  ltcclients,
+		BtcCoinRPC:  btcclients,
+		BchCoinRPC:  bchclients,
+		BsvCoinRPC:  bsvclients,
 		Cache:       cacheEntangleInfo,
+		Params:      params,
 	}
 
-	params := config.ChainParams
 	targetTimespan := int64(params.TargetTimespan / time.Second)
 	adjustmentFactor := params.RetargetAdjustmentFactor
 	b := BlockChain{
@@ -2326,9 +2436,10 @@ func New(config *Config) (*BlockChain, error) {
 		pruneDepth:          config.PruneDepth,
 		fastSyncDataDir:     config.FastSyncDataDir,
 		fastSyncDone:        make(chan struct{}),
-		entangleVerify:      entangleVerify,
+		exChangeVerify:      exChangeVerify,
 	}
 
+	NetParams = params
 	// Initialize the chain state from the passed database.  When the db
 	// does not yet contain any chain state, both it and the chain state
 	// will be initialized to contain only the genesis block.
@@ -2431,6 +2542,6 @@ func (b *BlockChain) FlushCachedState(mode FlushMode) error {
 	return b.utxoCache.Flush(mode, b.stateSnapshot)
 }
 
-func (b *BlockChain) GetEntangleVerify() *cross.EntangleVerify {
-	return b.entangleVerify
+func (b *BlockChain) GetExChangeVerify() *cross.ExChangeVerify {
+	return b.exChangeVerify
 }

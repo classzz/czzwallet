@@ -33,7 +33,7 @@ var (
 	// testNet3PowLimit is the highest proof of work value a Bitcoin block
 	// can have for the test network (version 3).  It is the value
 	// 2^224 - 1.
-	testNet3PowLimit = new(big.Int).Sub(new(big.Int).Lsh(bigOne, 224), bigOne)
+	testNetPowLimit = new(big.Int).Sub(new(big.Int).Lsh(bigOne, 255), bigOne)
 
 	// simNetPowLimit is the highest proof of work value a Bitcoin block
 	// can have for the simulation test network.  It is the value 2^255 - 1.
@@ -181,6 +181,10 @@ type Params struct {
 
 	EntangleHeight int32
 
+	BeaconHeight int32
+
+	ExChangeHeight int32
+
 	// Checkpoints ordered from oldest to newest.
 	Checkpoints []Checkpoint
 
@@ -227,9 +231,9 @@ var MainNetParams = Params{
 	Net:         wire.MainNet,
 	DefaultPort: "18883",
 	DNSSeeds: []DNSSeed{
-		{"3.15.206.33", true},
+		{"18.218.117.48", true},
 		{"18.222.100.56", true},
-		{"3.15.206.49", true},
+		{"52.14.154.71", true},
 	},
 
 	// Chain parameters
@@ -241,18 +245,36 @@ var MainNetParams = Params{
 
 	CoinbaseMaturity:         14,
 	SubsidyReductionInterval: 1000000,
-	TargetTimePerBlock:       30, // 10 minutes
+	TargetTimePerBlock:       30, // 30 seconds
 	GenerateSupported:        true,
 
 	EntangleHeight: 120000,
+	BeaconHeight:   420000,
+	ExChangeHeight: 500000,
 	// Checkpoints ordered from oldest to newest.
 	Checkpoints: []Checkpoint{
 		{Height: 11111, Hash: newHashFromStr("1faf0d2246f07608c6a97a6ca698055a89d07f84c52db4455addad0cc86175aa")},
 		{Height: 33333, Hash: newHashFromStr("cf3de795f31dbc20fbefc0e1b8aeeb07c41fc7e8ef748c9e7d74af767beaf1d2")},
+		{Height: 55000, Hash: newHashFromStr("1f6daf0bc028bea6183120d740df256162c645de98e3c221625b8405d54bad66")},
 		{Height: 74000, Hash: newHashFromStr("0e14e6a7afb47846296111d2ade1b75527a96e898c11a8422325aad480adcc1d")},
 		{Height: 85000, Hash: newHashFromStr("bdf3bc34deb6a19df11f626cc18c5230777124cb2a83c0c3bca90dd2b523a417")},
 		{Height: 91000, Hash: newHashFromStr("676e45ca46d01099763a4b693d7aa63068e3280a9c6f576dd0fade5d01cc1439")},
 		{Height: 120100, Hash: newHashFromStr("ad185c5b8cb742bc113791b171c63fbd9ded1a1e33ad1aeed137a7f31b44fc70")},
+		{Height: 150000, Hash: newHashFromStr("621732d353237090755fd0ae2bcd1dbc62ff3e16730799f8da7e57ee7f1e7f6b")},
+		{Height: 170000, Hash: newHashFromStr("b322b92797469e366849947a6daabce890f74c8be58af5096f79efe629bd2b4c")},
+		{Height: 190000, Hash: newHashFromStr("bbccbab407a2755d3bac95c1dd02d4a25641e7fe40cc3e866f485125e5733b15")},
+		{Height: 210000, Hash: newHashFromStr("07f5e9acc27edfd1ff6252f1005e3984a374d05a92aead6914c9f5b2b1ef14c8")},
+		{Height: 225000, Hash: newHashFromStr("fc0e1538e7369862e41c8cedbf2b0b73eaf1a3f76cdad7496ec7884e3aad3e9d")},
+		{Height: 260000, Hash: newHashFromStr("c37dfc73a91484ef4279f67d14aeb7537c32203cc7463ea871877ead64af57eb")},
+		{Height: 290000, Hash: newHashFromStr("e105ec96c674d53b17eda46dd464ba0b3bcb9d4706d9a5c497f995f7e7d472b9")},
+		{Height: 320757, Hash: newHashFromStr("b5e2b5431de01a93efbcdef77b5a72ba216dcdcf14728e66e22d96387da3089b")},
+		{Height: 350757, Hash: newHashFromStr("19d78e5c64bd4f414ca13765dd7ff7639e3b58749969fd650170ff10db6b8b92")},
+		{Height: 370000, Hash: newHashFromStr("80258d53649075b0118ac709faa639061b1fc5780091487b71ec1dd9b1db2e6b")},
+		{Height: 385000, Hash: newHashFromStr("62ab9700f2ed79a6e059890d0385254bdd0e572ed4634c0f7fec012dd18f660e")},
+		{Height: 400100, Hash: newHashFromStr("7c7fd0304aa4409c091a7681e4b094dcf82fe497b6831bf96c7ea31352c757f2")},
+		{Height: 422555, Hash: newHashFromStr("095dd0703fb7ece922bb157cfaa5ccd25469e6a95bf1fc226d734c09722d6e64")},
+		{Height: 436000, Hash: newHashFromStr("57f6f4ead9aee8becc9acab3fad18c6194684069e3ca781c64ce79c22bca83f4")},
+		{Height: 466000, Hash: newHashFromStr("0f97de060983f83533820977754b279d66a9085ed6cb2a628448bec7c9cbd0ad")},
 	},
 
 	// Consensus rule change deployments.
@@ -304,7 +326,7 @@ var MainNetParams = Params{
 // 3), this network is sometimes simply called "testnet".
 var RegressionNetParams = Params{
 	Name:        "regtest",
-	Net:         wire.TestNet,
+	Net:         wire.RegTestNet,
 	DefaultPort: "18884",
 	DNSSeeds:    []DNSSeed{},
 
@@ -319,11 +341,13 @@ var RegressionNetParams = Params{
 	TargetTimePerBlock:       30, // 10 minutes
 	RetargetAdjustmentFactor: 4,  // 25% less, 400% more
 	ReduceMinDifficulty:      true,
-	NoDifficultyAdjustment:   true,
+	NoDifficultyAdjustment:   false,
 	MinDiffReductionTime:     time.Minute * 20, // TargetTimePerBlock * 2
 	GenerateSupported:        true,
 
 	EntangleHeight: 120000,
+	BeaconHeight:   2,
+	ExChangeHeight: 500000,
 	// Checkpoints ordered from oldest to newest.
 	Checkpoints: nil,
 
@@ -331,8 +355,79 @@ var RegressionNetParams = Params{
 	//
 	// The miner confirmation window is defined as:
 	//   target proof of work timespan / target proof of work spacing
-	RuleChangeActivationThreshold: 108, // 75%  of MinerConfirmationWindow
-	MinerConfirmationWindow:       144,
+	RuleChangeActivationThreshold: 1916, // 95% of MinerConfirmationWindow
+	MinerConfirmationWindow:       2016, //
+	Deployments: [DefinedDeployments]ConsensusDeployment{
+		DeploymentTestDummy: {
+			BitNumber:  28,
+			StartTime:  0,             // Always available for vote
+			ExpireTime: math.MaxInt64, // Never expires
+		},
+		DeploymentCSV: {
+			BitNumber:  0,
+			StartTime:  0,             // Always available for vote
+			ExpireTime: math.MaxInt64, // Never expires
+		},
+		DeploymentSEQ: {
+			BitNumber:  0,
+			StartTime:  0,             //
+			ExpireTime: math.MaxInt64, // Never expires
+		},
+	},
+
+	// Mempool parameters
+	RelayNonStdTxs: false,
+
+	// The prefix for the cashaddress
+	CashAddressPrefix: "czzreg", // always czzreg for reg testnet
+
+	// Address encoding magics
+	LegacyPubKeyHashAddrID: 0x6f, // starts with m or n
+	LegacyScriptHashAddrID: 0xc4, // starts with 2
+	PrivateKeyID:           0xef, // starts with 9 (uncompressed) or c (compressed)
+
+	// BIP32 hierarchical deterministic extended key magics
+	HDPrivateKeyID: [4]byte{0x04, 0x35, 0x83, 0x94}, // starts with tprv
+	HDPublicKeyID:  [4]byte{0x04, 0x35, 0x87, 0xcf}, // starts with tpub
+
+	// BIP44 coin type used in the hierarchical deterministic path for
+	// address generation.
+	HDCoinType: 1, // all coins use 1
+}
+
+// TestNet3Params defines the network parameters for the test Bitcoin network
+// (version 3).  Not to be confused with the regression test network, this
+// network is sometimes simply called "testnet".
+var TestNetParams = Params{
+	Name:        "testnet",
+	Net:         wire.TestNet,
+	DefaultPort: "18885",
+	DNSSeeds:    []DNSSeed{},
+
+	// Chain parameters
+	GenesisBlock: &testNetGenesisBlock,
+	GenesisHash:  &testNetGenesisHash,
+	PowLimit:     testNetPowLimit,
+	PowLimitBits: 0x207fffff,
+
+	CoinbaseMaturity:         14,
+	SubsidyReductionInterval: 1000000,
+	TargetTimePerBlock:       30, // 10 minutes
+	GenerateSupported:        true,
+
+	EntangleHeight: 5,
+	BeaconHeight:   10,
+	ExChangeHeight: 15,
+
+	// Checkpoints ordered from oldest to newest.
+	Checkpoints: []Checkpoint{},
+
+	// Consensus rule change deployments.
+	//
+	// The miner confirmation window is defined as:
+	//   target proof of work timespan / target proof of work spacing
+	RuleChangeActivationThreshold: 1916, // 95% of MinerConfirmationWindow
+	MinerConfirmationWindow:       2016, //
 	Deployments: [DefinedDeployments]ConsensusDeployment{
 		DeploymentTestDummy: {
 			BitNumber:  28,
@@ -355,95 +450,20 @@ var RegressionNetParams = Params{
 	RelayNonStdTxs: true,
 
 	// The prefix for the cashaddress
-	CashAddressPrefix: "czzreg", // always czzreg for reg testnet
-
-	// Address encoding magics
-	LegacyPubKeyHashAddrID: 0x6f, // starts with m or n
-	LegacyScriptHashAddrID: 0xc4, // starts with 2
-	PrivateKeyID:           0xef, // starts with 9 (uncompressed) or c (compressed)
-
-	// BIP32 hierarchical deterministic extended key magics
-	HDPrivateKeyID: [4]byte{0x04, 0x35, 0x83, 0x94}, // starts with tprv
-	HDPublicKeyID:  [4]byte{0x04, 0x35, 0x87, 0xcf}, // starts with tpub
-
-	// BIP44 coin type used in the hierarchical deterministic path for
-	// address generation.
-	HDCoinType: 1, // all coins use 1
-}
-
-// TestNet3Params defines the network parameters for the test Bitcoin network
-// (version 3).  Not to be confused with the regression test network, this
-// network is sometimes simply called "testnet".
-var TestNet3Params = Params{
-	Name:        "testnet3",
-	Net:         wire.TestNet3,
-	DefaultPort: "18333",
-	DNSSeeds: []DNSSeed{
-		{"testnet-seed.bitcoinabc.org", true},
-		{"testnet-seed-abc.bitcoinforks.org", true},
-		{"testnet-seed.bitprim.org", true},
-		{"testnet-seed.deadalnix.me", true},
-		{"testnet-seeder.criptolayer.net", true},
-	},
-
-	// Chain parameters
-	GenesisBlock: &testNet3GenesisBlock,
-	GenesisHash:  &testNet3GenesisHash,
-	PowLimit:     testNet3PowLimit,
-	PowLimitBits: 0x1d00ffff,
-
-	GravitonActivationTime: 1573819200,
-
-	CoinbaseMaturity:         100,
-	SubsidyReductionInterval: 1000000,
-	TargetTimespan:           time.Hour * 24 * 14, // 14 days
-	TargetTimePerBlock:       time.Minute * 10,    // 10 minutes
-	RetargetAdjustmentFactor: 4,                   // 25% less, 400% more
-	ReduceMinDifficulty:      true,
-	NoDifficultyAdjustment:   false,
-	MinDiffReductionTime:     time.Minute * 20, // TargetTimePerBlock * 2
-	GenerateSupported:        false,
-
-	// Checkpoints ordered from oldest to newest.
-	Checkpoints: []Checkpoint{},
-
-	// Consensus rule change deployments.
-	//
-	// The miner confirmation window is defined as:
-	//   target proof of work timespan / target proof of work spacing
-	RuleChangeActivationThreshold: 1512, // 75% of MinerConfirmationWindow
-	MinerConfirmationWindow:       2016,
-	Deployments: [DefinedDeployments]ConsensusDeployment{
-		DeploymentTestDummy: {
-			BitNumber:  28,
-			StartTime:  1199145601, // January 1, 2008 UTC
-			ExpireTime: 1230767999, // December 31, 2008 UTC
-		},
-		DeploymentCSV: {
-			BitNumber:  0,
-			StartTime:  1456790400, // March 1st, 2016
-			ExpireTime: 1493596800, // May 1st, 2017
-		},
-	},
-
-	// Mempool parameters
-	RelayNonStdTxs: true,
-
-	// The prefix for the cashaddress
 	CashAddressPrefix: "czztest", // always czztest for testnet
 
 	// Address encoding magics
-	LegacyPubKeyHashAddrID: 0x6f, // starts with m or n
-	LegacyScriptHashAddrID: 0xc4, // starts with 2
-	PrivateKeyID:           0xef, // starts with 9 (uncompressed) or c (compressed)
+	LegacyPubKeyHashAddrID: 0x00, // starts with 1
+	LegacyScriptHashAddrID: 0x05, // starts with 3
+	PrivateKeyID:           0x80, // starts with 5 (uncompressed) or K (compressed)
 
 	// BIP32 hierarchical deterministic extended key magics
-	HDPrivateKeyID: [4]byte{0x04, 0x35, 0x83, 0x94}, // starts with tprv
-	HDPublicKeyID:  [4]byte{0x04, 0x35, 0x87, 0xcf}, // starts with tpub
+	HDPrivateKeyID: [4]byte{0x04, 0x88, 0xad, 0xe4}, // starts with xprv
+	HDPublicKeyID:  [4]byte{0x04, 0x88, 0xb2, 0x1e}, // starts with xpub
 
 	// BIP44 coin type used in the hierarchical deterministic path for
 	// address generation.
-	HDCoinType: 1, // all coins use 1
+	HDCoinType: 706, // 706
 }
 
 // SimNetParams defines the network parameters for the simulation test Bitcoin
@@ -464,17 +484,19 @@ var SimNetParams = Params{
 	GenesisHash:              &simNetGenesisHash,
 	PowLimit:                 simNetPowLimit,
 	PowLimitBits:             0x207fffff,
-	CoinbaseMaturity:         100,
+	CoinbaseMaturity:         14,
 	SubsidyReductionInterval: 1000000,
 	TargetTimespan:           time.Hour * 24 * 14, // 14 days
 	TargetTimePerBlock:       30,                  // 10 minutes
 	RetargetAdjustmentFactor: 4,                   // 25% less, 400% more
 	ReduceMinDifficulty:      true,
-	NoDifficultyAdjustment:   true,
+	NoDifficultyAdjustment:   false,
 	MinDiffReductionTime:     time.Minute * 20, // TargetTimePerBlock * 2
 	GenerateSupported:        true,
 
-	EntangleHeight: 120000,
+	EntangleHeight: 10,
+	BeaconHeight:   12,
+	ExChangeHeight: 20,
 	// Checkpoints ordered from oldest to newest.
 	Checkpoints: nil,
 
@@ -649,7 +671,7 @@ func newHashFromStr(hexStr string) *chainhash.Hash {
 func init() {
 	// Register all default networks when the package is initialized.
 	mustRegister(&MainNetParams)
-	mustRegister(&TestNet3Params)
+	mustRegister(&TestNetParams)
 	mustRegister(&RegressionNetParams)
 	mustRegister(&SimNetParams)
 }

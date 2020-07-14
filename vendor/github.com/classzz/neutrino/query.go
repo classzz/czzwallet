@@ -10,7 +10,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/classzz/classzz/blockchain"
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"
@@ -969,29 +968,29 @@ func (s *ChainService) GetBlock(blockHash chainhash.Hash,
 					block.SetHeight(int32(height))
 				}
 
-				prevHeader, _, _ := s.BlockHeaders.FetchHeader(&block.MsgBlock().Header.PrevBlock)
+				//prevHeader, _, _ := s.BlockHeaders.FetchHeader(&block.MsgBlock().Header.PrevBlock)
 				// If this claims our block but doesn't pass
 				// the sanity check, the peer is trying to
 				// bamboozle us. Disconnect it.
-				if err := blockchain.CheckBlockSanity(
-					&s.chainParams,
-					prevHeader,
-					block,
-					// We don't need to check PoW because
-					// by the time we get here, it's been
-					// checked during header
-					// synchronization
-					s.chainParams.PowLimit,
-					s.timeSource,
-					false,
-				); err != nil {
-					log.Warnf("Invalid block for %s "+
-						"received from %s -- "+
-						"disconnecting peer", blockHash,
-						sp.Addr())
-					sp.Disconnect()
-					return
-				}
+				//if err := blockchain.CheckBlockSanity(
+				//	&s.chainParams,
+				//	prevHeader,
+				//	block,
+				//	// We don't need to check PoW because
+				//	// by the time we get here, it's been
+				//	// checked during header
+				//	// synchronization
+				//	s.chainParams.PowLimit,
+				//	s.timeSource,
+				//	false,
+				//); err != nil {
+				//	log.Warnf("Invalid block for %s "+
+				//		"received from %s -- "+
+				//		"disconnecting peer", blockHash,
+				//		sp.Addr())
+				//	sp.Disconnect()
+				//	return
+				//}
 
 				// TODO(roasbeef): modify CheckBlockSanity to
 				// also check witness commitment

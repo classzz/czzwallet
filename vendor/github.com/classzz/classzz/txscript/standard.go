@@ -57,18 +57,27 @@ const (
 	MultiSigTy                       // Multi signature.
 	NullDataTy                       // Empty data-only (provably prunable).
 	EntangleTy                       //
+
+	BeaconRegistrationTy
+	BurnTy
+	BeaconTy
+	ExChangeTy
 )
 
 // scriptClassToName houses the human-readable strings which describe each
 // script class.
 var scriptClassToName = []string{
-	NonStandardTy: "nonstandard",
-	PubKeyTy:      "pubkey",
-	PubKeyHashTy:  "pubkeyhash",
-	ScriptHashTy:  "scripthash",
-	MultiSigTy:    "multisig",
-	NullDataTy:    "nulldata",
-	EntangleTy:    "EntangleTy",
+	NonStandardTy:        "nonstandard",
+	PubKeyTy:             "pubkey",
+	PubKeyHashTy:         "pubkeyhash",
+	ScriptHashTy:         "scripthash",
+	MultiSigTy:           "multisig",
+	NullDataTy:           "nulldata",
+	EntangleTy:           "entangle",
+	BeaconRegistrationTy: "beaconregistration",
+	BurnTy:               "burn",
+	BeaconTy:             "beacon",
+	ExChangeTy:           "exchange",
 }
 
 // String implements the Stringer interface by returning the name of
@@ -99,7 +108,6 @@ func isPubkeyHash(pops []parsedOpcode) bool {
 		pops[2].opcode.value == OP_DATA_20 &&
 		pops[3].opcode.value == OP_EQUALVERIFY &&
 		pops[4].opcode.value == OP_CHECKSIG
-
 }
 
 // isMultiSig returns true if the passed script is a multisig transaction, false
@@ -181,11 +189,71 @@ func isEntangleTy(pops []parsedOpcode) bool {
 		pops[1].opcode.value == OP_UNKNOWN193
 }
 
+func isBeaconRegistrationTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 2 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN195
+}
+
+func isBurnTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 2 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN196
+}
+
+func isBurnProofTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 3 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN196 &&
+		pops[2].opcode.value == OP_1
+}
+
+func isBurnReportWhiteListTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 3 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN196 &&
+		pops[2].opcode.value == OP_2
+}
+
 func isKeepedAmountInfo(pops []parsedOpcode) bool {
 	// simple judge
 	return len(pops) >= 2 &&
 		pops[0].opcode.value == OP_RETURN &&
 		pops[1].opcode.value == OP_UNKNOWN194
+}
+
+func isBeaconTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 2 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN197
+}
+
+func isAddBeaconPledgeTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 3 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN197 &&
+		pops[2].opcode.value == OP_1
+}
+
+func isAddBeaconCoinbaseTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 3 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN197 &&
+		pops[2].opcode.value == OP_2
+}
+
+func isExChangeTy(pops []parsedOpcode) bool {
+	// simple judge
+	return len(pops) >= 2 &&
+		pops[0].opcode.value == OP_RETURN &&
+		pops[1].opcode.value == OP_UNKNOWN198
 }
 
 // scriptType returns the type of the script being inspected from the known
@@ -203,6 +271,14 @@ func typeOfScript(pops []parsedOpcode) ScriptClass {
 		return NullDataTy
 	} else if isEntangleTy(pops) {
 		return EntangleTy
+	} else if isBeaconRegistrationTy(pops) {
+		return BeaconRegistrationTy
+	} else if isBurnTy(pops) {
+		return BurnTy
+	} else if isBeaconTy(pops) {
+		return BeaconTy
+	} else if isExChangeTy(pops) {
+		return ExChangeTy
 	}
 	return NonStandardTy
 }
@@ -224,6 +300,62 @@ func IsEntangleTy(script []byte) bool {
 		return false
 	}
 	return isEntangleTy(pops)
+}
+
+func IsExChangeTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isExChangeTy(pops)
+}
+
+func IsBeaconRegistrationTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isBeaconRegistrationTy(pops)
+}
+
+func IsAddBeaconPledgeTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isAddBeaconPledgeTy(pops)
+}
+
+func IsAddBeaconCoinbaseTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isAddBeaconCoinbaseTy(pops)
+}
+
+func IsBurnTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isBurnTy(pops)
+}
+
+func IsBurnProofTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isBurnProofTy(pops)
+}
+
+func IsBurnReportWhiteListTy(script []byte) bool {
+	pops, err := parseScript(script)
+	if err != nil {
+		return false
+	}
+	return isBurnReportWhiteListTy(pops)
 }
 
 // expectedInputs returns the number of arguments required by a script.
@@ -254,6 +386,8 @@ func expectedInputs(pops []parsedOpcode, class ScriptClass) int {
 		return asSmallInt(pops[0].opcode) + 1
 
 	case EntangleTy:
+		fallthrough
+	case BeaconRegistrationTy:
 		fallthrough
 	case NullDataTy:
 		fallthrough
@@ -449,6 +583,76 @@ func EntangleScript(data []byte) ([]byte, error) {
 	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN193).AddData(data).Script()
 }
 
+// ExChangeScript impl in
+func ExChangeScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN198).AddData(data).Script()
+}
+
+// BeaconRegistration impl in
+func BeaconRegistrationScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN195).AddData(data).Script()
+}
+
+// AddBeaconPledge impl in
+func AddBeaconPledgeScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN197).AddOp(OP_1).AddData(data).Script()
+}
+
+// AddBeaconCoinbase impl in
+func AddBeaconCoinbaseScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN197).AddOp(OP_2).AddData(data).Script()
+}
+
+// AddBeaconCoinbase impl in
+func BurnScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN196).AddData(data).Script()
+}
+
+// Add Burn Proof for robot or beacon, impl in
+func BurnProofScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN196).AddOp(OP_1).AddData(data).Script()
+}
+
+// Add white list Proof for robot, impl in
+func BurnReportWhiteListScript(data []byte) ([]byte, error) {
+	if len(data) > MaxDataCarrierSize {
+		str := fmt.Sprintf("data size %d is larger than max "+
+			"allowed size %d", len(data), MaxDataCarrierSize)
+		return nil, scriptError(ErrTooMuchNullData, str)
+	}
+	return NewScriptBuilder().AddOp(OP_RETURN).AddOp(OP_UNKNOWN196).AddOp(OP_2).AddData(data).Script()
+}
+
 // KeepedAmountScript impl in
 func KeepedAmountScript(data []byte) ([]byte, error) {
 	if len(data) > MaxDataCarrierSize {
@@ -493,6 +697,7 @@ func MultiSigScript(pubkeys []*czzutil.AddressPubKey, nrequired int) ([]byte, er
 
 	return builder.Script()
 }
+
 func GetKeepedAmountData(script []byte) ([]byte, error) {
 	pops, err := parseScript(script)
 	if err != nil {
@@ -503,6 +708,7 @@ func GetKeepedAmountData(script []byte) ([]byte, error) {
 	}
 	return pops[2].data, nil
 }
+
 func GetEntangleInfoData(script []byte) ([]byte, error) {
 	pops, err := parseScript(script)
 	if err != nil {
@@ -510,6 +716,81 @@ func GetEntangleInfoData(script []byte) ([]byte, error) {
 	}
 	if !isEntangleTy(pops) {
 		return nil, errors.New("not Entangle info type")
+	}
+	return pops[2].data, nil
+}
+
+func GetBeaconRegistrationData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isBeaconRegistrationTy(pops) {
+		return nil, errors.New("not BeaconRegistration type")
+	}
+	return pops[2].data, nil
+}
+
+func GetAddBeaconPledgeData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isAddBeaconPledgeTy(pops) {
+		return nil, errors.New("not AddBeaconPledge type")
+	}
+	return pops[3].data, nil
+}
+
+func GetAddBeaconCoinbaseData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isAddBeaconPledgeTy(pops) {
+		return nil, errors.New("not AddBeaconPledge type")
+	}
+	return pops[3].data, nil
+}
+
+func GetBurnInfoData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isBurnTy(pops) {
+		return nil, errors.New("not Burn info type")
+	}
+	return pops[2].data, nil
+}
+
+func GetBurnProofInfoData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isBurnProofTy(pops) {
+		return nil, errors.New("not Burn info type")
+	}
+	return pops[3].data, nil
+}
+func GetWhiteListProofData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isBurnReportWhiteListTy(pops) {
+		return nil, errors.New("not Burn info type")
+	}
+	return pops[3].data, nil
+}
+func GetExChangeInfoData(script []byte) ([]byte, error) {
+	pops, err := parseScript(script)
+	if err != nil {
+		return nil, err
+	}
+	if !isExChangeTy(pops) {
+		return nil, errors.New("not ExChange info type")
 	}
 	return pops[2].data, nil
 }

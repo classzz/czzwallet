@@ -365,7 +365,7 @@ func loadConfig(optionalConfigPath *string) (*config, []string, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	if cfg.TestNet3 {
-		activeNet = &netparams.TestNet3Params
+		activeNet = &netparams.TestNetParams
 		numNets++
 	}
 	if cfg.SimNet {

@@ -320,8 +320,8 @@ func (c *BitcoindConn) getCurrentNet() (wire.BitcoinNet, error) {
 	}
 
 	switch *hash {
-	case *chaincfg.TestNet3Params.GenesisHash:
-		return chaincfg.TestNet3Params.Net, nil
+	case *chaincfg.TestNetParams.GenesisHash:
+		return chaincfg.TestNetParams.Net, nil
 	case *chaincfg.RegressionNetParams.GenesisHash:
 		return chaincfg.RegressionNetParams.Net, nil
 	case *chaincfg.MainNetParams.GenesisHash:

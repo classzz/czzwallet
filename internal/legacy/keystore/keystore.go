@@ -480,8 +480,8 @@ func (net *netParams) ReadFrom(r io.Reader) (int64, error) {
 	switch wire.BitcoinNet(binary.LittleEndian.Uint32(uint32Bytes)) {
 	case wire.MainNet:
 		*net = (netParams)(chaincfg.MainNetParams)
-	case wire.TestNet3:
-		*net = (netParams)(chaincfg.TestNet3Params)
+	case wire.TestNet:
+		*net = (netParams)(chaincfg.TestNetParams)
 	case wire.SimNet:
 		*net = (netParams)(chaincfg.SimNetParams)
 	default:

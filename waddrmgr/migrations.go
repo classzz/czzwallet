@@ -306,9 +306,9 @@ func populateBirthdayBlock(ns walletdb.ReadWriteBucket) error {
 		genesisTimestamp =
 			chaincfg.MainNetParams.GenesisBlock.Header.Timestamp
 
-	case *chaincfg.TestNet3Params.GenesisHash:
+	case *chaincfg.TestNetParams.GenesisHash:
 		genesisTimestamp =
-			chaincfg.TestNet3Params.GenesisBlock.Header.Timestamp
+			chaincfg.TestNetParams.GenesisBlock.Header.Timestamp
 
 	case *chaincfg.RegressionNetParams.GenesisHash:
 		genesisTimestamp =

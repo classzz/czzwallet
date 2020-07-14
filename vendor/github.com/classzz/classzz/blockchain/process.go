@@ -6,9 +6,9 @@ package blockchain
 
 import (
 	"fmt"
-
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/database"
+	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/czzutil"
 )
 
@@ -185,13 +185,19 @@ func (b *BlockChain) ProcessBlock(block *czzutil.Block, flags BehaviorFlags) (bo
 	prevHash := &blockHeader.PrevBlock
 	prevHashExists, err := b.blockExists(prevHash)
 	prevHeader, _ := b.HeaderByHash(prevHash)
+	prevHeight, _ := b.BlockHeightByHashAll(prevHash)
+	blockHeight := prevHeight + 1
 
 	if err != nil {
 		return false, false, err
 	}
 
+	eState := b.GetEstateByHashAndHeight(*prevHash, prevHeight)
+	script := block.MsgBlock().Transactions[0].TxOut[0].PkScript
+	_, addrs, _, _ := txscript.ExtractPkScriptAddrs(script, b.chainParams)
+
 	// Perform preliminary sanity checks on the block and its transactions.
-	err = checkBlockSanity(b.chainParams, &prevHeader, block, b.chainParams.PowLimit, b.timeSource, flags)
+	err = checkBlockSanity(b.chainParams, &prevHeader, block, b.chainParams.PowLimit, b.timeSource, flags, eState, addrs[0])
 	if err != nil {
 		return false, false, err
 	}
@@ -202,8 +208,10 @@ func (b *BlockChain) ProcessBlock(block *czzutil.Block, flags BehaviorFlags) (bo
 
 		return false, true, nil
 	}
-	if b.chainParams.EntangleHeight < block.Height() {
-		if err := b.CheckBlockEntangle(block); err != nil {
+
+	// cross Verify
+	if b.chainParams.BeaconHeight < blockHeight {
+		if err := b.CheckBlockCrossTx(block, prevHeight); err != nil {
 			return false, false, err
 		}
 	}

@@ -6,6 +6,7 @@ package btcjson
 
 import (
 	"encoding/json"
+	"math/big"
 )
 
 // GetBlockHeaderVerboseResult models the data from the getblockheader command when
@@ -37,12 +38,28 @@ type GetBlockBaseVerboseResult struct {
 	Version       int32   `json:"version"`
 	VersionHex    string  `json:"versionHex"`
 	MerkleRoot    string  `json:"merkleroot"`
+	CidRoot       string  `json:"cidroot"`
 	Time          int64   `json:"time"`
 	Nonce         uint64  `json:"nonce"`
 	Bits          string  `json:"bits"`
 	Difficulty    float64 `json:"difficulty"`
 	PreviousHash  string  `json:"previousblockhash"`
 	NextHash      string  `json:"nextblockhash,omitempty"`
+}
+
+type GetWorkTemplateResult struct {
+	Hash          string `json:"hash"`
+	Confirmations int64  `json:"confirmations"`
+	Size          int32  `json:"size"`
+	Height        int64  `json:"height"`
+	Version       int32  `json:"version"`
+	VersionHex    string `json:"versionHex"`
+	MerkleRoot    string `json:"merkleroot"`
+	Time          int64  `json:"time"`
+	Nonce         uint64 `json:"nonce"`
+	Bits          string `json:"bits"`
+	Difficulty    int64  `json:"difficulty"`
+	PreviousHash  string `json:"previousblockhash"`
 }
 
 // GetBlockVerboseResult models the data from the getblock command when the
@@ -458,6 +475,19 @@ type InfoChainResult struct {
 	TestNet         bool    `json:"testnet"`
 	RelayFee        float64 `json:"relayfee"`
 	Errors          string  `json:"errors"`
+}
+
+// InfoChainResult models the data returned by the chain server getinfo command.
+type StateInfoChainResult struct {
+	ExchangeID      uint64       `json:"exchange_id"`
+	Address         string       `json:"address"`
+	ToAddress       string       `json:"toAddress_pk_hex"`
+	StakingAmount   *big.Int     `json:"staking_amount"` // in
+	AssetFlag       uint32       `json:"asset_flag"`
+	Fee             uint64       `json:"fee"`
+	KeepTime        uint64       `json:"keep_time"` // the time as the block count for finally redeem time
+	WhiteList       []*WhiteUnit `json:"white_list"`
+	CoinBaseAddress []string     `json:"CoinBaseAddress"`
 }
 
 type EntangleInfoChainResult struct {
