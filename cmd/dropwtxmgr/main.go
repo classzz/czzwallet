@@ -18,7 +18,7 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
-const defaultNet = "testnet"
+const defaultNet = "mainnet"
 
 var datadir = czzutil.AppDataDir("czzwallet", false)
 
