@@ -89,12 +89,15 @@ func fetchMinedBalance(ns walletdb.ReadBucket) (czzutil.Amount, error) {
 			"read %v)", len(v))
 		return 0, storeError(ErrData, str, nil)
 	}
+
+	log.Debug("putMinedBalance rootMinedBalance", rootMinedBalance, "v", byteOrder.Uint64(v))
 	return czzutil.Amount(byteOrder.Uint64(v)), nil
 }
 
 func putMinedBalance(ns walletdb.ReadWriteBucket, amt czzutil.Amount) error {
 	v := make([]byte, 8)
 	byteOrder.PutUint64(v, uint64(amt))
+	log.Debug("putMinedBalance rootMinedBalance", rootMinedBalance, "v", uint64(amt))
 	err := ns.Put(rootMinedBalance, v)
 	if err != nil {
 		str := "failed to put balance"
