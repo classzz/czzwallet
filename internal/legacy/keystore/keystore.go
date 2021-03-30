@@ -24,6 +24,7 @@ import (
 
 	"golang.org/x/crypto/ripemd160"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/czzec"
@@ -34,15 +35,10 @@ import (
 )
 
 const (
-	// Filename is the name of the wallet data file
 	Filename = "wallet.bin"
 
 	// Length in bytes of KDF output.
 	kdfOutputBytes = 32
-
-	// Maximum length in bytes of a comment that can have a size represented
-	// as a uint16.
-	maxCommentLen = (1 << 16) - 1
 )
 
 const (
@@ -67,9 +63,9 @@ var fileID = [8]byte{0xba, 'W', 'A', 'L', 'L', 'E', 'T', 0x00}
 type entryHeader byte
 
 const (
-	addrCommentHeader entryHeader = 1 << iota
-	txCommentHeader
-	deletedHeader
+	addrCommentHeader entryHeader = 1 << iota //nolint:varcheck,deadcode,unused
+	txCommentHeader                           // nolint:varcheck,deadcode,unused
+	deletedHeader                             // nolint:varcheck,deadcode,unused
 	scriptHeader
 	addrHeader entryHeader = 0
 )
@@ -234,9 +230,6 @@ func chainedPubKey(pubkey, chaincode []byte) ([]byte, error) {
 		return nil, err
 	}
 	newX, newY := czzec.S256().ScalarMult(oldPk.X, oldPk.Y, xorbytes)
-	if err != nil {
-		return nil, err
-	}
 	newPk := &czzec.PublicKey{
 		Curve: czzec.S256(),
 		X:     newX,
@@ -502,11 +495,8 @@ func (net *netParams) WriteTo(w io.Writer) (int64, error) {
 
 // Stringified byte slices for use as map lookup keys.
 type addressKey string
-type transactionHashKey string
 
-type comment []byte
-
-func getAddressKey(addr czzutil.Address) addressKey {
+func getAddressKey(addr btcutil.Address) addressKey {
 	return addressKey(addr.ScriptAddress())
 }
 
@@ -776,7 +766,7 @@ func (s *Store) writeTo(w io.Writer) (n int64, err error) {
 			importedAddrs = append(importedAddrs, e)
 		}
 	}
-	wts = append(chainedAddrs, importedAddrs...)
+	wts = append(chainedAddrs, importedAddrs...) // nolint:gocritic
 	appendedEntries := varEntries{store: s, entries: wts}
 
 	// Iterate through each entry needing to be written.  If data
@@ -814,7 +804,6 @@ func (s *Store) writeTo(w io.Writer) (n int64, err error) {
 	return n, nil
 }
 
-// MarkDirty will set the Store's dirty boolean to true.
 // TODO: set this automatically.
 func (s *Store) MarkDirty() {
 	s.mtx.Lock()
@@ -823,8 +812,6 @@ func (s *Store) MarkDirty() {
 	s.dirty = true
 }
 
-// WriteIfDirty will check if the Store is dirty and if so
-// write the contents to disk.
 func (s *Store) WriteIfDirty() error {
 	s.mtx.RLock()
 	if !s.dirty {
@@ -1340,7 +1327,7 @@ func (s *Store) SetSyncedWith(bs *BlockStamp) {
 	}
 }
 
-// SyncedTo returns details about the block that a wallet is marked at least
+// SyncHeight returns details about the block that a wallet is marked at least
 // synced through.  The height is the height that rescans should start at when
 // syncing a wallet back to the best chain.
 //
@@ -1380,7 +1367,7 @@ func (s *Store) SyncedTo() (hash *chainhash.Hash, height int32) {
 			}
 		}
 	}
-	return
+	return // nolint:nakedret
 }
 
 // NewIterateRecentBlocks returns an iterator for recently-seen blocks.
@@ -1947,8 +1934,6 @@ func (rb *recentBlocks) iter(s *Store) *BlockIterator {
 	}
 }
 
-// Next will increment the index and return true if possible.
-// Otherwise it will return false.
 func (it *BlockIterator) Next() bool {
 	it.storeMtx.RLock()
 	defer it.storeMtx.RUnlock()
@@ -1960,8 +1945,6 @@ func (it *BlockIterator) Next() bool {
 	return true
 }
 
-// Prev will reduce the index by one if possible and return true.
-// Otherwise it will return false.
 func (it *BlockIterator) Prev() bool {
 	it.storeMtx.RLock()
 	defer it.storeMtx.RUnlock()
@@ -1973,7 +1956,6 @@ func (it *BlockIterator) Prev() bool {
 	return true
 }
 
-// BlockStamp returns a BlockStamp object for the current index.
 func (it *BlockIterator) BlockStamp() BlockStamp {
 	it.storeMtx.RLock()
 	defer it.storeMtx.RUnlock()
@@ -2117,7 +2099,7 @@ func (k *publicKey) ReadFrom(r io.Reader) (n int64, err error) {
 	n += read
 
 	*k = append([]byte{format}, s...)
-	return
+	return // nolint:nakedret
 }
 
 func (k *publicKey) WriteTo(w io.Writer) (n int64, err error) {

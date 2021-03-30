@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzwallet/waddrmgr"
 	"github.com/classzz/czzwallet/walletdb"
 	_ "github.com/classzz/czzwallet/walletdb/bdb"
-	"github.com/classzz/czzwallet/wtxmgr"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -24,11 +24,14 @@ var datadir = czzutil.AppDataDir("czzwallet", false)
 
 // Flags.
 var opts = struct {
-	Force  bool   `short:"f" description:"Force removal without prompt"`
-	DbPath string `long:"db" description:"Path to wallet database"`
+	Force      bool          `short:"f" description:"Force removal without prompt"`
+	DbPath     string        `long:"db" description:"Path to wallet database"`
+	DropLabels bool          `long:"droplabels" description:"Drop transaction labels"`
+	Timeout    time.Duration `long:"timeout" description:"Timeout value when opening the wallet database"`
 }{
-	Force:  false,
-	DbPath: filepath.Join(datadir, defaultNet, "wallet.db"),
+	Force:   false,
+	DbPath:  filepath.Join(datadir, defaultNet, wallet.WalletDBName),
+	Timeout: wallet.DefaultDBTimeout,
 }
 
 func init() {
@@ -37,12 +40,6 @@ func init() {
 		os.Exit(1)
 	}
 }
-
-var (
-	// Namespace keys.
-	waddrmgrNamespace = []byte("waddrmgr")
-	wtxmgrNamespace   = []byte("wtxmgr")
-)
 
 func yes(s string) bool {
 	switch s {
@@ -99,44 +96,16 @@ func mainInt() int {
 		fmt.Println("Enter yes or no.")
 	}
 
-	db, err := walletdb.Open("bdb", opts.DbPath)
+	db, err := walletdb.Open("bdb", opts.DbPath, true, opts.Timeout)
 	if err != nil {
 		fmt.Println("Failed to open database:", err)
 		return 1
 	}
 	defer db.Close()
 
-	fmt.Println("Dropping czzwallet transaction history")
+	fmt.Println("Dropping btcwallet transaction history")
 
-	err = walletdb.Update(db, func(tx walletdb.ReadWriteTx) error {
-		err := tx.DeleteTopLevelBucket(wtxmgrNamespace)
-		if err != nil && err != walletdb.ErrBucketNotFound {
-			return err
-		}
-		ns, err := tx.CreateTopLevelBucket(wtxmgrNamespace)
-		if err != nil {
-			return err
-		}
-		err = wtxmgr.Create(ns)
-		if err != nil {
-			return err
-		}
-
-		ns = tx.ReadWriteBucket(waddrmgrNamespace)
-		birthdayBlock, err := waddrmgr.FetchBirthdayBlock(ns)
-		if err != nil {
-			fmt.Println("Wallet does not have a birthday block " +
-				"set, falling back to rescan from genesis")
-
-			startBlock, err := waddrmgr.FetchStartBlock(ns)
-			if err != nil {
-				return err
-			}
-			return waddrmgr.PutSyncedTo(ns, startBlock)
-		}
-
-		return waddrmgr.PutSyncedTo(ns, &birthdayBlock)
-	})
+	err = wallet.DropTransactionHistory(db, !opts.DropLabels)
 	if err != nil {
 		fmt.Println("Failed to drop and re-create namespace:", err)
 		return 1

@@ -10,7 +10,6 @@ import (
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzwallet/chain"
 	"github.com/classzz/czzwallet/waddrmgr"
-	"github.com/classzz/czzwallet/walletdb"
 	"github.com/classzz/czzwallet/wtxmgr"
 )
 
@@ -51,57 +50,17 @@ type rescanBatch struct {
 	errChans    []chan error
 }
 
-// NewRescanJob creates a new RescanJob using the active data
-// in the wallet. This can then be passed into SubmitRescan
-// to do a rescan from the wallet's birthday.
-func (w *Wallet) NewRescanJob() (*RescanJob, error) {
-	var (
-		addrs         []czzutil.Address
-		unspent       []wtxmgr.Credit
-		birthdayBlock waddrmgr.BlockStamp
-		err           error
-	)
-	err = walletdb.View(w.db, func(dbtx walletdb.ReadTx) error {
-		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		birthdayBlock, _, err = w.Manager.BirthdayBlock(addrmgrNs)
-		if err != nil {
-			return err
-		}
-		addrs, unspent, err = w.activeData(dbtx)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	outpoints := make(map[wire.OutPoint]czzutil.Address, len(unspent))
-	for _, output := range unspent {
-		_, outputAddrs, _, err := txscript.ExtractPkScriptAddrs(
-			output.PkScript, w.chainParams,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		outpoints[output.OutPoint] = outputAddrs[0]
-	}
-
-	job := &RescanJob{
-		InitialSync: true,
-		Addrs:       addrs,
-		OutPoints:   outpoints,
-		BlockStamp:  birthdayBlock,
-	}
-	return job, nil
-}
-
 // SubmitRescan submits a RescanJob to the RescanManager.  A channel is
 // returned with the final error of the rescan.  The channel is buffered
 // and does not need to be read to prevent a deadlock.
 func (w *Wallet) SubmitRescan(job *RescanJob) <-chan error {
 	errChan := make(chan error, 1)
 	job.err = errChan
-	w.rescanAddJob <- job
+	select {
+	case w.rescanAddJob <- job:
+	case <-w.quitChan():
+		errChan <- ErrWalletShuttingDown
+	}
 	return errChan
 }
 
@@ -148,10 +107,11 @@ func (b *rescanBatch) done(err error) {
 // submissions, and possibly batching many waiting requests together so they
 // can be handled by a single rescan after the current one completes.
 func (w *Wallet) rescanBatchHandler() {
+	defer w.wg.Done()
+
 	var curBatch, nextBatch *rescanBatch
 	quit := w.quitChan()
 
-out:
 	for {
 		select {
 		case job := <-w.rescanAddJob:
@@ -159,7 +119,12 @@ out:
 				// Set current batch as this job and send
 				// request.
 				curBatch = job.batch()
-				w.rescanBatch <- curBatch
+				select {
+				case w.rescanBatch <- curBatch:
+				case <-quit:
+					job.err <- ErrWalletShuttingDown
+					return
+				}
 			} else {
 				// Create next batch if it doesn't exist, or
 				// merge the job.
@@ -179,9 +144,16 @@ out:
 						"currently running")
 					continue
 				}
-				w.rescanProgress <- &RescanProgressMsg{
+				select {
+				case w.rescanProgress <- &RescanProgressMsg{
 					Addresses:    curBatch.addrs,
 					Notification: n,
+				}:
+				case <-quit:
+					for _, errChan := range curBatch.errChans {
+						errChan <- ErrWalletShuttingDown
+					}
+					return
 				}
 
 			case *chain.RescanFinished:
@@ -191,15 +163,29 @@ out:
 						"currently running")
 					continue
 				}
-				w.rescanFinished <- &RescanFinishedMsg{
+				select {
+				case w.rescanFinished <- &RescanFinishedMsg{
 					Addresses:    curBatch.addrs,
 					Notification: n,
+				}:
+				case <-quit:
+					for _, errChan := range curBatch.errChans {
+						errChan <- ErrWalletShuttingDown
+					}
+					return
 				}
 
 				curBatch, nextBatch = nextBatch, nil
 
 				if curBatch != nil {
-					w.rescanBatch <- curBatch
+					select {
+					case w.rescanBatch <- curBatch:
+					case <-quit:
+						for _, errChan := range curBatch.errChans {
+							errChan <- ErrWalletShuttingDown
+						}
+						return
+					}
 				}
 
 			default:
@@ -208,11 +194,9 @@ out:
 			}
 
 		case <-quit:
-			break out
+			return
 		}
 	}
-
-	w.wg.Done()
 }
 
 // rescanProgressHandler handles notifications for partially and fully completed
@@ -229,7 +213,6 @@ out:
 			n := msg.Notification
 			log.Infof("Rescanned through block %v (height %d)",
 				n.Hash, n.Height)
-			w.NtfnServer.notifyRescan(n.Hash, n.Height, false)
 
 		case msg := <-w.rescanFinished:
 			n := msg.Notification
@@ -239,7 +222,6 @@ out:
 				"%s, height %d)", len(addrs), noun, n.Hash,
 				n.Height)
 
-			w.NtfnServer.notifyRescan(n.Hash, n.Height, true)
 			go w.resendUnminedTxs()
 
 		case <-quit:
@@ -327,5 +309,10 @@ func (w *Wallet) rescanWithTarget(addrs []czzutil.Address,
 	}
 
 	// Submit merged job and block until rescan completes.
-	return <-w.SubmitRescan(job)
+	select {
+	case err := <-w.SubmitRescan(job):
+		return err
+	case <-w.quitChan():
+		return ErrWalletShuttingDown
+	}
 }

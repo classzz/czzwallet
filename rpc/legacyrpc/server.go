@@ -58,12 +58,11 @@ func (c *websocketClient) send(b []byte) error {
 // Server holds the items the RPC server may need to access (auth,
 // config, shutdown, etc.)
 type Server struct {
-	httpServer    http.Server
-	wallet        *wallet.Wallet
-	walletLoader  *wallet.Loader
-	chainClient   chain.Interface
-	handlerLookup func(string) (requestHandler, bool)
-	handlerMu     sync.Mutex
+	httpServer   http.Server
+	wallet       *wallet.Wallet
+	walletLoader *wallet.Loader
+	chainClient  chain.Interface
+	handlerMu    sync.Mutex
 
 	listeners []net.Listener
 	authsha   [sha256.Size]byte
@@ -130,31 +129,32 @@ func NewServer(opts *Options, walletLoader *wallet.Loader, listeners []net.Liste
 			server.wg.Done()
 		}))
 
-	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients, func(w http.ResponseWriter, r *http.Request) {
-		authenticated := false
-		switch server.checkAuthHeader(r) {
-		case nil:
-			authenticated = true
-		case ErrNoAuth:
-			// nothing
-		default:
-			// If auth was supplied but incorrect, rather than simply
-			// being missing, immediately terminate the connection.
-			log.Warnf("Disconnecting improperly authorized " +
-				"websocket client")
-			jsonAuthFail(w)
-			return
-		}
+	serveMux.Handle("/ws", throttledFn(opts.MaxWebsocketClients,
+		func(w http.ResponseWriter, r *http.Request) {
+			authenticated := false
+			switch server.checkAuthHeader(r) {
+			case nil:
+				authenticated = true
+			case ErrNoAuth:
+				// nothing
+			default:
+				// If auth was supplied but incorrect, rather than simply
+				// being missing, immediately terminate the connection.
+				log.Warnf("Disconnecting improperly authorized " +
+					"websocket client")
+				jsonAuthFail(w)
+				return
+			}
 
-		conn, err := server.upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Warnf("Cannot websocket upgrade client %s: %v",
-				r.RemoteAddr, err)
-			return
-		}
-		wsc := newWebsocketClient(conn, authenticated, r.RemoteAddr)
-		server.websocketClientRPC(wsc)
-	}))
+			conn, err := server.upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				log.Warnf("Cannot websocket upgrade client %s: %v",
+					r.RemoteAddr, err)
+				return
+			}
+			wsc := newWebsocketClient(conn, authenticated, r.RemoteAddr)
+			server.websocketClientRPC(wsc)
+		}))
 
 	for _, lis := range listeners {
 		server.serve(lis)
@@ -325,30 +325,12 @@ func throttled(threshold int64, h http.Handler) http.Handler {
 
 		if current-1 >= threshold {
 			log.Warnf("Reached threshold of %d concurrent active clients", threshold)
-			http.Error(w, "429 Too Many Requests", 429)
+			http.Error(w, "429 Too Many Requests", http.StatusTooManyRequests)
 			return
 		}
 
 		h.ServeHTTP(w, r)
 	})
-}
-
-// sanitizeRequest returns a sanitized string for the request which may be
-// safely logged.  It is intended to strip private keys, passphrases, and any
-// other secrets from request parameters before they may be saved to a log file.
-func sanitizeRequest(r *btcjson.Request) string {
-	// These are considered unsafe to log, so sanitize parameters.
-	switch r.Method {
-	case "encryptwallet", "importprivkey", "importwallet",
-		"signrawtransaction", "walletpassphrase",
-		"walletpassphrasechange":
-
-		return fmt.Sprintf(`{"id":%v,"method":"%s","params":SANITIZED %d parameters}`,
-			r.ID, r.Method, len(r.Params))
-	}
-
-	return fmt.Sprintf(`{"id":%v,"method":"%s","params":%v}`, r.ID,
-		r.Method, r.Params)
 }
 
 // idPointer returns a pointer to the passed ID, or nil if the interface is nil.
@@ -472,6 +454,8 @@ out:
 					break out
 				}
 				s.requestProcessShutdown()
+				break out
+
 			default:
 				req := req // Copy for the closure
 				f := s.handlerClosure(&req)

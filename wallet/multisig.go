@@ -27,7 +27,7 @@ func (w *Wallet) MakeMultiSigScript(addrs []czzutil.Address, nRequired int) ([]b
 	var addrmgrNs walletdb.ReadBucket
 	defer func() {
 		if dbtx != nil {
-			dbtx.Rollback()
+			_ = dbtx.Rollback()
 		}
 	}()
 
@@ -86,7 +86,7 @@ func (w *Wallet) ImportP2SHRedeemScript(script []byte) (*czzutil.AddressScriptHa
 		// As this is a regular P2SH script, we'll import this into the
 		// BIP0044 scope.
 		bip44Mgr, err := w.Manager.FetchScopedKeyManager(
-			waddrmgr.KeyScopeBIP0044,
+			waddrmgr.KeyScopeBIP0084,
 		)
 		if err != nil {
 			return err

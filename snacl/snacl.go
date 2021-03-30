@@ -13,9 +13,9 @@ import (
 	"io"
 	"runtime/debug"
 
-	"github.com/btcsuite/golangcrypto/nacl/secretbox"
-	"github.com/btcsuite/golangcrypto/scrypt"
-	"github.com/classzz/czzwallet/internal/zero"
+	"github.com/btcsuite/btcwallet/internal/zero"
+	"golang.org/x/crypto/nacl/secretbox"
+	"golang.org/x/crypto/scrypt"
 )
 
 var (
@@ -222,7 +222,7 @@ func (sk *SecretKey) Decrypt(in []byte) ([]byte, error) {
 }
 
 // NewSecretKey returns a SecretKey structure based on the passed parameters.
-func NewSecretKey(password *[]byte, N, r, p int) (*SecretKey, error) {
+func NewSecretKey(password *[]byte, N, r, p int) (*SecretKey, error) { // nolint:gocritic
 	sk := SecretKey{
 		Key: (*CryptoKey)(&[KeySize]byte{}),
 	}

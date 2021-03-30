@@ -140,8 +140,22 @@ func (c *RPCClient) Stop() {
 	c.quitMtx.Unlock()
 }
 
-// Rescan wraps the normal Rescan command with an additional paramter that
-// allows us to map an oupoint to the address in the chain that it pays to.
+// IsCurrent returns whether the chain backend considers its view of the network
+// as "current".
+func (c *RPCClient) IsCurrent() bool {
+	bestHash, _, err := c.GetBestBlock()
+	if err != nil {
+		return false
+	}
+	bestHeader, err := c.GetBlockHeader(bestHash)
+	if err != nil {
+		return false
+	}
+	return bestHeader.Timestamp.After(time.Now().Add(-isCurrentDelta))
+}
+
+// Rescan wraps the normal Rescan command with an additional parameter that
+// allows us to map an outpoint to the address in the chain that it pays to.
 // This is useful when using BIP 158 filters as they include the prev pkScript
 // rather than the full outpoint.
 func (c *RPCClient) Rescan(startHash *chainhash.Hash, addrs []czzutil.Address,
@@ -149,10 +163,12 @@ func (c *RPCClient) Rescan(startHash *chainhash.Hash, addrs []czzutil.Address,
 
 	flatOutpoints := make([]*wire.OutPoint, 0, len(outPoints))
 	for ops := range outPoints {
+		ops := ops
+
 		flatOutpoints = append(flatOutpoints, &ops)
 	}
 
-	return c.Client.Rescan(startHash, addrs, flatOutpoints)
+	return c.Client.Rescan(startHash, addrs, flatOutpoints) // nolint:staticcheck
 }
 
 // WaitForShutdown blocks until both the client has finished disconnecting
@@ -184,8 +200,8 @@ func (c *RPCClient) BlockStamp() (*waddrmgr.BlockStamp, error) {
 // FilterBlocks scans the blocks contained in the FilterBlocksRequest for any
 // addresses of interest. For each requested block, the corresponding compact
 // filter will first be checked for matches, skipping those that do not report
-// anything. If the filter returns a postive match, the full block will be
-// fetched and filtered. This method returns a FilterBlocksReponse for the first
+// anything. If the filter returns a positive match, the full block will be
+// fetched and filtered. This method returns a FilterBlocksResponse for the first
 // block containing a matching address. If no matches are found in the range of
 // blocks requested, the returned response will be nil.
 func (c *RPCClient) FilterBlocks(
@@ -238,7 +254,7 @@ func (c *RPCClient) FilterBlocks(
 		log.Infof("Fetching block height=%d hash=%v",
 			blk.Height, blk.Hash)
 
-		rawBlock, err := c.GetBlock(blk.Hash.String())
+		rawBlock, err := c.GetBlock(&blk.Hash)
 		if err != nil {
 			return nil, err
 		}

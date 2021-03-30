@@ -14,6 +14,11 @@ import (
 
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/czzwallet/walletdb"
+const (
+	// MaxReorgDepth represents the maximum number of block hashes we'll
+	// keep within the wallet at any given point in order to recover from
+	// long reorgs.
+	MaxReorgDepth = 10000
 )
 
 var (
@@ -53,7 +58,7 @@ type syncStatus uint8
 // of supporting sync status on a per-address basis.
 const (
 	ssNone    syncStatus = 0 // not iota as they need to be stable for db
-	ssPartial syncStatus = 1
+	ssPartial syncStatus = 1 // nolint:varcheck,deadcode,unused
 	ssFull    syncStatus = 2
 )
 
@@ -76,6 +81,12 @@ const (
 	// database. This is an account that re-uses the key derivation schema
 	// of BIP0044-like accounts.
 	accountDefault accountType = 0 // not iota as they need to be stable
+
+	// accountWatchOnly is the account type used for storing watch-only
+	// accounts within the database. This is an account that re-uses the key
+	// derivation schema of BIP0044-like accounts and does not store private
+	// keys.
+	accountWatchOnly accountType = 1
 )
 
 // dbAccountRow houses information stored about an account in the database.
@@ -93,6 +104,18 @@ type dbDefaultAccountRow struct {
 	nextExternalIndex uint32
 	nextInternalIndex uint32
 	name              string
+}
+
+// dbWatchOnlyAccountRow houses additional information stored about a watch-only
+// account in the databse.
+type dbWatchOnlyAccountRow struct {
+	dbAccountRow
+	pubKeyEncrypted      []byte
+	masterKeyFingerprint uint32
+	nextExternalIndex    uint32
+	nextInternalIndex    uint32
+	name                 string
+	addrSchema           *ScopeAddrSchema
 }
 
 // dbAddressRow houses common information stored about an address in the
@@ -268,14 +291,6 @@ func uint32ToBytes(number uint32) []byte {
 	return buf
 }
 
-// uint64ToBytes converts a 64 bit unsigned integer into a 8-byte slice in
-// little-endian order: 1 -> [1 0 0 0 0 0 0 0].
-func uint64ToBytes(number uint64) []byte {
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, number)
-	return buf
-}
-
 // stringToBytes converts a string into a variable length byte slice in
 // little-endian order: "abc" -> [3 0 0 0 61 62 63]
 func stringToBytes(s string) []byte {
@@ -302,15 +317,6 @@ func scopeToBytes(scope *KeyScope) [scopeKeySize]byte {
 	binary.LittleEndian.PutUint32(scopeBytes[4:], scope.Coin)
 
 	return scopeBytes
-}
-
-// scopeFromBytes decodes a serializes manager scope into its concrete manager
-// scope struct.
-func scopeFromBytes(scopeBytes []byte) KeyScope {
-	return KeyScope{
-		Purpose: binary.LittleEndian.Uint32(scopeBytes[:]),
-		Coin:    binary.LittleEndian.Uint32(scopeBytes[4:]),
-	}
 }
 
 // scopeSchemaToBytes encodes the passed scope schema as a set of bytes
@@ -352,22 +358,6 @@ func fetchScopeAddrSchema(ns walletdb.ReadBucket,
 	}
 
 	return scopeSchemaFromBytes(schemaBytes), nil
-}
-
-// putScopeAddrSchema attempts to store the passed addr scehma for the given
-// manager scope.
-func putScopeAddrTypes(ns walletdb.ReadWriteBucket, scope *KeyScope,
-	schema *ScopeAddrSchema) error {
-
-	scopeSchemaBucket := ns.NestedReadWriteBucket(scopeSchemaBucketName)
-	if scopeSchemaBucket == nil {
-		str := fmt.Sprintf("unable to find scope schema bucket")
-		return managerError(ErrScopeNotFound, str, nil)
-	}
-
-	scopeKey := scopeToBytes(scope)
-	schemaBytes := scopeSchemaToBytes(schema)
-	return scopeSchemaBucket.Put(scopeKey[:], schemaBytes)
 }
 
 func fetchReadScopeBucket(ns walletdb.ReadBucket, scope *KeyScope) (walletdb.ReadBucket, error) {
@@ -564,7 +554,7 @@ func putMasterHDKeys(ns walletdb.ReadWriteBucket, masterHDPrivEnc, masterHDPubEn
 // fetchMasterHDKeys attempts to fetch both the master HD private and public
 // keys from the database. If this is a watch only wallet, then it's possible
 // that the master private key isn't stored.
-func fetchMasterHDKeys(ns walletdb.ReadBucket) ([]byte, []byte, error) {
+func fetchMasterHDKeys(ns walletdb.ReadBucket) ([]byte, []byte) {
 	bucket := ns.NestedReadBucket(mainBucketName)
 
 	var masterHDPrivEnc, masterHDPubEnc []byte
@@ -575,16 +565,16 @@ func fetchMasterHDKeys(ns walletdb.ReadBucket) ([]byte, []byte, error) {
 	key := bucket.Get(masterHDPrivName)
 	if key != nil {
 		masterHDPrivEnc = make([]byte, len(key))
-		copy(masterHDPrivEnc[:], key)
+		copy(masterHDPrivEnc, key)
 	}
 
 	key = bucket.Get(masterHDPubName)
 	if key != nil {
 		masterHDPubEnc = make([]byte, len(key))
-		copy(masterHDPubEnc[:], key)
+		copy(masterHDPubEnc, key)
 	}
 
-	return masterHDPrivEnc, masterHDPubEnc, nil
+	return masterHDPrivEnc, masterHDPubEnc
 }
 
 // fetchCryptoKeys loads the encrypted crypto keys which are in turn used to
@@ -802,6 +792,159 @@ func serializeDefaultAccountRow(encryptedPubKey, encryptedPrivKey []byte,
 	return rawData
 }
 
+// deserializeWatchOnlyAccountRow deserializes the raw data from the passed
+// account row as a watch-only account.
+func deserializeWatchOnlyAccountRow(accountID []byte,
+	row *dbAccountRow) (*dbWatchOnlyAccountRow, error) {
+
+	// The serialized BIP0044 watch-only account raw data format is:
+	//   <encpubkeylen><encpubkey><masterkeyfingerprint><nextextidx>
+	//   <nextintidx><namelen><name>
+	//
+	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes master key
+	// fingerprint + 4 bytes next external index + 4 bytes next internal
+	// index + 4 bytes name len + name + 1 byte addr schema exists + 2 bytes
+	// addr schema (if exists)
+
+	// Given the above, the length of the entry must be at a minimum
+	// the constant value sizes.
+	if len(row.rawData) < 21 {
+		str := fmt.Sprintf("malformed serialized watch-only account "+
+			"for key %x", accountID)
+		return nil, managerError(ErrDatabase, str, nil)
+	}
+
+	retRow := dbWatchOnlyAccountRow{
+		dbAccountRow: *row,
+	}
+	r := bytes.NewReader(row.rawData)
+
+	var pubLen uint32
+	err := binary.Read(r, binary.LittleEndian, &pubLen)
+	if err != nil {
+		return nil, err
+	}
+	retRow.pubKeyEncrypted = make([]byte, pubLen)
+	err = binary.Read(r, binary.LittleEndian, &retRow.pubKeyEncrypted)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Read(r, binary.LittleEndian, &retRow.masterKeyFingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Read(r, binary.LittleEndian, &retRow.nextExternalIndex)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Read(r, binary.LittleEndian, &retRow.nextInternalIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	var nameLen uint32
+	err = binary.Read(r, binary.LittleEndian, &nameLen)
+	if err != nil {
+		return nil, err
+	}
+	name := make([]byte, nameLen)
+	err = binary.Read(r, binary.LittleEndian, &name)
+	if err != nil {
+		return nil, err
+	}
+	retRow.name = string(name)
+
+	var addrSchemaExists bool
+	err = binary.Read(r, binary.LittleEndian, &addrSchemaExists)
+	if err != nil {
+		return nil, err
+	}
+	if addrSchemaExists {
+		var addrSchemaBytes [2]byte
+		err = binary.Read(r, binary.LittleEndian, &addrSchemaBytes)
+		if err != nil {
+			return nil, err
+		}
+		retRow.addrSchema = scopeSchemaFromBytes(addrSchemaBytes[:])
+	}
+
+	return &retRow, nil
+}
+
+// serializeWatchOnlyAccountRow returns the serialization of the raw data field
+// for a watch-only account.
+func serializeWatchOnlyAccountRow(encryptedPubKey []byte, masterKeyFingerprint,
+	nextExternalIndex, nextInternalIndex uint32, name string,
+	addrSchema *ScopeAddrSchema) ([]byte, error) {
+
+	// The serialized BIP0044 account raw data format is:
+	//   <encpubkeylen><encpubkey><masterkeyfingerprint><nextextidx>
+	//   <nextintidx><namelen><name>
+	//
+	// 4 bytes encrypted pubkey len + encrypted pubkey + 4 bytes master key
+	// fingerprint + 4 bytes next external index + 4 bytes next internal
+	// index + 4 bytes name len + name + 1 byte addr schema exists + 2 bytes
+	// addr schema (if exists)
+	pubLen := uint32(len(encryptedPubKey))
+	nameLen := uint32(len(name))
+
+	addrSchemaExists := addrSchema != nil
+	var addrSchemaBytes []byte
+	if addrSchemaExists {
+		addrSchemaBytes = scopeSchemaToBytes(addrSchema)
+	}
+
+	bufLen := 21 + pubLen + nameLen + uint32(len(addrSchemaBytes))
+	buf := bytes.NewBuffer(make([]byte, 0, bufLen))
+
+	err := binary.Write(buf, binary.LittleEndian, pubLen)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(buf, binary.LittleEndian, encryptedPubKey)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, masterKeyFingerprint)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, nextExternalIndex)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(buf, binary.LittleEndian, nextInternalIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, nameLen)
+	if err != nil {
+		return nil, err
+	}
+	err = binary.Write(buf, binary.LittleEndian, []byte(name))
+	if err != nil {
+		return nil, err
+	}
+
+	err = binary.Write(buf, binary.LittleEndian, addrSchemaExists)
+	if err != nil {
+		return nil, err
+	}
+	if addrSchemaExists {
+		err = binary.Write(buf, binary.LittleEndian, addrSchemaBytes)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return buf.Bytes(), nil
+}
+
 // forEachKeyScope calls the given function for each known manager scope
 // within the set of scopes known by the root manager.
 func forEachKeyScope(ns walletdb.ReadBucket, fn func(KeyScope) error) error {
@@ -814,7 +957,7 @@ func forEachKeyScope(ns walletdb.ReadBucket, fn func(KeyScope) error) error {
 		}
 
 		scope := KeyScope{
-			Purpose: binary.LittleEndian.Uint32(k[:]),
+			Purpose: binary.LittleEndian.Uint32(k),
 			Coin:    binary.LittleEndian.Uint32(k[4:]),
 		}
 
@@ -843,6 +986,7 @@ func forEachAccount(ns walletdb.ReadBucket, scope *KeyScope,
 }
 
 // fetchLastAccount retrieves the last account from the database.
+// If no accounts, returns twos-complement representation of -1, so that the next account is zero
 func fetchLastAccount(ns walletdb.ReadBucket, scope *KeyScope) (uint32, error) {
 	scopedBucket, err := fetchReadScopeBucket(ns, scope)
 	if err != nil {
@@ -852,6 +996,9 @@ func fetchLastAccount(ns walletdb.ReadBucket, scope *KeyScope) (uint32, error) {
 	metaBucket := scopedBucket.NestedReadBucket(metaBucketName)
 
 	val := metaBucket.Get(lastAccountName)
+	if val == nil {
+		return (1 << 32) - 1, nil
+	}
 	if len(val) != 4 {
 		str := fmt.Sprintf("malformed metadata '%s' stored in database",
 			lastAccountName)
@@ -936,6 +1083,8 @@ func fetchAccountInfo(ns walletdb.ReadBucket, scope *KeyScope,
 	switch row.acctType {
 	case accountDefault:
 		return deserializeDefaultAccountRow(accountID, row)
+	case accountWatchOnly:
+		return deserializeWatchOnlyAccountRow(accountID, row)
 	}
 
 	str := fmt.Sprintf("unsupported account type '%d'", row.acctType)
@@ -1076,8 +1225,9 @@ func putAccountRow(ns walletdb.ReadWriteBucket, scope *KeyScope,
 	return nil
 }
 
-// putAccountInfo stores the provided account information to the database.
-func putAccountInfo(ns walletdb.ReadWriteBucket, scope *KeyScope,
+// putDefaultAccountInfo stores the provided default account information to the
+// database.
+func putDefaultAccountInfo(ns walletdb.ReadWriteBucket, scope *KeyScope,
 	account uint32, encryptedPubKey, encryptedPrivKey []byte,
 	nextExternalIndex, nextInternalIndex uint32, name string) error {
 
@@ -1092,7 +1242,38 @@ func putAccountInfo(ns walletdb.ReadWriteBucket, scope *KeyScope,
 		acctType: accountDefault,
 		rawData:  rawData,
 	}
-	if err := putAccountRow(ns, scope, account, &acctRow); err != nil {
+	return putAccountInfo(ns, scope, account, &acctRow, name)
+}
+
+// putWatchOnlyAccountInfo stores the provided watch-only account information to
+// the database.
+func putWatchOnlyAccountInfo(ns walletdb.ReadWriteBucket, scope *KeyScope,
+	account uint32, encryptedPubKey []byte, masterKeyFingerprint,
+	nextExternalIndex, nextInternalIndex uint32, name string,
+	addrSchema *ScopeAddrSchema) error {
+
+	rawData, err := serializeWatchOnlyAccountRow(
+		encryptedPubKey, masterKeyFingerprint, nextExternalIndex,
+		nextInternalIndex, name, addrSchema,
+	)
+	if err != nil {
+		return err
+	}
+
+	// TODO(roasbeef): pass scope bucket directly??
+
+	acctRow := dbAccountRow{
+		acctType: accountWatchOnly,
+		rawData:  rawData,
+	}
+	return putAccountInfo(ns, scope, account, &acctRow, name)
+}
+
+// putAccountInfo stores the provided account information to the database.
+func putAccountInfo(ns walletdb.ReadWriteBucket, scope *KeyScope,
+	account uint32, acctRow *dbAccountRow, name string) error {
+
+	if err := putAccountRow(ns, scope, account, acctRow); err != nil {
 		return err
 	}
 
@@ -1102,11 +1283,7 @@ func putAccountInfo(ns walletdb.ReadWriteBucket, scope *KeyScope,
 	}
 
 	// Update account name index.
-	if err := putAccountNameIndex(ns, scope, account, name); err != nil {
-		return err
-	}
-
-	return nil
+	return putAccountNameIndex(ns, scope, account, name)
 }
 
 // putLastAccount stores the provided metadata - last account - to the
@@ -1332,7 +1509,7 @@ func fetchAddressByHash(ns walletdb.ReadBucket, scope *KeyScope,
 
 	bucket := scopedBucket.NestedReadBucket(addrBucketName)
 
-	serializedRow := bucket.Get(addrHash[:])
+	serializedRow := bucket.Get(addrHash)
 	if serializedRow == nil {
 		str := "address not found"
 		return nil, managerError(ErrAddressNotFound, str, nil)
@@ -1468,32 +1645,64 @@ func putChainedAddress(ns walletdb.ReadWriteBucket, scope *KeyScope,
 	if err != nil {
 		return err
 	}
-	arow, err := deserializeDefaultAccountRow(accountID, row)
-	if err != nil {
-		return err
+
+	switch row.acctType {
+	case accountDefault:
+		arow, err := deserializeDefaultAccountRow(accountID, row)
+		if err != nil {
+			return err
+		}
+
+		// Increment the appropriate next index depending on whether the
+		// branch is internal or external.
+		nextExternalIndex := arow.nextExternalIndex
+		nextInternalIndex := arow.nextInternalIndex
+		if branch == InternalBranch {
+			nextInternalIndex = index + 1
+		} else {
+			nextExternalIndex = index + 1
+		}
+
+		// Reserialize the account with the updated index and store it.
+		row.rawData = serializeDefaultAccountRow(
+			arow.pubKeyEncrypted, arow.privKeyEncrypted,
+			nextExternalIndex, nextInternalIndex, arow.name,
+		)
+
+	case accountWatchOnly:
+		arow, err := deserializeWatchOnlyAccountRow(accountID, row)
+		if err != nil {
+			return err
+		}
+
+		// Increment the appropriate next index depending on whether the
+		// branch is internal or external.
+		nextExternalIndex := arow.nextExternalIndex
+		nextInternalIndex := arow.nextInternalIndex
+		if branch == InternalBranch {
+			nextInternalIndex = index + 1
+		} else {
+			nextExternalIndex = index + 1
+		}
+
+		// Reserialize the account with the updated index and store it.
+		row.rawData, err = serializeWatchOnlyAccountRow(
+			arow.pubKeyEncrypted, arow.masterKeyFingerprint,
+			nextExternalIndex, nextInternalIndex, arow.name,
+			arow.addrSchema,
+		)
+		if err != nil {
+			return err
+		}
 	}
 
-	// Increment the appropriate next index depending on whether the branch
-	// is internal or external.
-	nextExternalIndex := arow.nextExternalIndex
-	nextInternalIndex := arow.nextInternalIndex
-	if branch == InternalBranch {
-		nextInternalIndex = index + 1
-	} else {
-		nextExternalIndex = index + 1
-	}
-
-	// Reserialize the account with the updated index and store it.
-	row.rawData = serializeDefaultAccountRow(
-		arow.pubKeyEncrypted, arow.privKeyEncrypted, nextExternalIndex,
-		nextInternalIndex, arow.name,
-	)
 	err = bucket.Put(accountID, serializeAccountRow(row))
 	if err != nil {
 		str := fmt.Sprintf("failed to update next index for "+
 			"address %x, account %d", addressID, account)
 		return managerError(ErrDatabase, str, err)
 	}
+
 	return nil
 }
 
@@ -1528,7 +1737,11 @@ func putScriptAddress(ns walletdb.ReadWriteBucket, scope *KeyScope,
 		syncStatus: status,
 		rawData:    rawData,
 	}
-	return putAddress(ns, scope, addressID, &addrRow)
+	if err := putAddress(ns, scope, addressID, &addrRow); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // existsAddress returns whether or not the address id exists in the database.
@@ -1576,7 +1789,8 @@ func forEachAccountAddress(ns walletdb.ReadBucket, scope *KeyScope,
 		return err
 	}
 
-	bucket := scopedBucket.NestedReadBucket(addrAcctIdxBucketName).NestedReadBucket(uint32ToBytes(account))
+	bucket := scopedBucket.NestedReadBucket(addrAcctIdxBucketName).
+		NestedReadBucket(uint32ToBytes(account))
 
 	// If index bucket is missing the account, there hasn't been any
 	// address entries yet
@@ -1725,6 +1939,9 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket) error {
 					str := "failed to delete account private key"
 					return managerError(ErrDatabase, str, err)
 				}
+
+			// Watch-only accounts don't contain any private keys.
+			case accountWatchOnly:
 			}
 
 			return nil
@@ -1827,40 +2044,45 @@ func fetchSyncedTo(ns walletdb.ReadBucket) (*BlockStamp, error) {
 
 // PutSyncedTo stores the provided synced to blockstamp to the database.
 func PutSyncedTo(ns walletdb.ReadWriteBucket, bs *BlockStamp) error {
-	bucket := ns.NestedReadWriteBucket(syncBucketName)
 	errStr := fmt.Sprintf("failed to store sync information %v", bs.Hash)
 
 	// If the block height is greater than zero, check that the previous
-	// block height exists. This prevents reorg issues in the future.
-	// We use BigEndian so that keys/values are added to the bucket in
-	// order, making writes more efficient for some database backends.
+	// block height exists.	This prevents reorg issues in the future. We use
+	// BigEndian so that keys/values are added to the bucket in order,
+	// making writes more efficient for some database backends.
 	if bs.Height > 0 {
-		if _, err := fetchBlockHash(ns, bs.Height-1); err != nil {
-			return managerError(ErrDatabase, errStr, err)
+		// We'll only check the previous block height exists if we've
+		// determined our birthday block. This is needed as we'll no
+		// longer store _all_ block hashes of the chain, so we only
+		// expect the previous block to exist once our initial sync has
+		// completed, which is dictated by our birthday block being set.
+		if _, err := FetchBirthdayBlock(ns); err == nil {
+			_, err := fetchBlockHash(ns, bs.Height-1)
+			if err != nil {
+				return managerError(ErrBlockNotFound, errStr, err)
+			}
 		}
 	}
 
 	// Store the block hash by block height.
-	height := make([]byte, 4)
-	binary.BigEndian.PutUint32(height, uint32(bs.Height))
-	err := bucket.Put(height, bs.Hash[0:32])
-	if err != nil {
+	if err := addBlockHash(ns, bs.Height, bs.Hash); err != nil {
 		return managerError(ErrDatabase, errStr, err)
 	}
 
-	// The serialized synced to format is:
-	//   <blockheight><blockhash><timestamp>
-	//
-	// 4 bytes block height + 32 bytes hash length + 4 byte timestamp length
-	buf := make([]byte, 40)
-	binary.LittleEndian.PutUint32(buf[0:4], uint32(bs.Height))
-	copy(buf[4:36], bs.Hash[0:32])
-	binary.LittleEndian.PutUint32(buf[36:], uint32(bs.Timestamp.Unix()))
+	// Remove the stale height if any, as we should only store MaxReorgDepth
+	// block hashes at any given point.
+	staleHeight := staleHeight(bs.Height)
+	if staleHeight > 0 {
+		if err := deleteBlockHash(ns, staleHeight); err != nil {
+			return managerError(ErrDatabase, errStr, err)
+		}
+	}
 
-	err = bucket.Put(syncedToName, buf)
-	if err != nil {
+	// Finally, we can update the syncedTo value.
+	if err := updateSyncedTo(ns, bs); err != nil {
 		return managerError(ErrDatabase, errStr, err)
 	}
+
 	return nil
 }
 
@@ -1886,6 +2108,62 @@ func fetchBlockHash(ns walletdb.ReadBucket, height int32) (*chainhash.Hash, erro
 		return nil, managerError(ErrDatabase, errStr, err)
 	}
 	return &hash, nil
+}
+
+// addBlockHash adds a block hash entry to the index within the syncBucket.
+func addBlockHash(ns walletdb.ReadWriteBucket, height int32, hash chainhash.Hash) error {
+	var rawHeight [4]byte
+	binary.BigEndian.PutUint32(rawHeight[:], uint32(height))
+	bucket := ns.NestedReadWriteBucket(syncBucketName)
+	if err := bucket.Put(rawHeight[:], hash[:]); err != nil {
+		errStr := fmt.Sprintf("failed to add hash %v", hash)
+		return managerError(ErrDatabase, errStr, err)
+	}
+	return nil
+}
+
+// deleteBlockHash deletes the block hash entry within the syncBucket for the
+// given height.
+func deleteBlockHash(ns walletdb.ReadWriteBucket, height int32) error {
+	var rawHeight [4]byte
+	binary.BigEndian.PutUint32(rawHeight[:], uint32(height))
+	bucket := ns.NestedReadWriteBucket(syncBucketName)
+	if err := bucket.Delete(rawHeight[:]); err != nil {
+		errStr := fmt.Sprintf("failed to delete hash for height %v",
+			height)
+		return managerError(ErrDatabase, errStr, err)
+	}
+	return nil
+}
+
+// updateSyncedTo updates the value behind the syncedToName key to the given
+// block.
+func updateSyncedTo(ns walletdb.ReadWriteBucket, bs *BlockStamp) error {
+	// The serialized synced to format is:
+	//   <blockheight><blockhash><timestamp>
+	//
+	// 4 bytes block height + 32 bytes hash length + 4 byte timestamp length
+	var serializedStamp [40]byte
+	binary.LittleEndian.PutUint32(serializedStamp[0:4], uint32(bs.Height))
+	copy(serializedStamp[4:36], bs.Hash[0:32])
+	binary.LittleEndian.PutUint32(
+		serializedStamp[36:], uint32(bs.Timestamp.Unix()),
+	)
+
+	bucket := ns.NestedReadWriteBucket(syncBucketName)
+	if err := bucket.Put(syncedToName, serializedStamp[:]); err != nil {
+		errStr := "failed to update synced to value"
+		return managerError(ErrDatabase, errStr, err)
+	}
+
+	return nil
+}
+
+// staleHeight returns the stale height for the given height. The stale height
+// indicates the height we should remove in order to maintain a maximum of
+// MaxReorgDepth block hashes.
+func staleHeight(height int32) int32 {
+	return height - MaxReorgDepth
 }
 
 // FetchStartBlock loads the start block stamp for the manager from the
@@ -1987,13 +2265,27 @@ func FetchBirthdayBlock(ns walletdb.ReadBucket) (BlockStamp, error) {
 	return block, nil
 }
 
-// putBirthdayBlock stores the provided birthday block to the database.
+// DeleteBirthdayBlock removes the birthday block from the database.
+//
+// NOTE: This does not alter the birthday block verification state.
+func DeleteBirthdayBlock(ns walletdb.ReadWriteBucket) error {
+	bucket := ns.NestedReadWriteBucket(syncBucketName)
+	if err := bucket.Delete(birthdayBlockName); err != nil {
+		str := "failed to remove birthday block"
+		return managerError(ErrDatabase, str, err)
+	}
+	return nil
+}
+
+// PutBirthdayBlock stores the provided birthday block to the database.
 //
 // The block is serialized as follows:
 //   [0:4]   block height
 //   [4:36]  block hash
 //   [36:44] block timestamp
-func putBirthdayBlock(ns walletdb.ReadWriteBucket, block BlockStamp) error {
+//
+// NOTE: This does not alter the birthday block verification state.
+func PutBirthdayBlock(ns walletdb.ReadWriteBucket, block BlockStamp) error {
 	var birthdayBlock [44]byte
 	binary.BigEndian.PutUint32(birthdayBlock[:4], uint32(block.Height))
 	copy(birthdayBlock[4:36], block.Hash[:])
@@ -2021,7 +2313,7 @@ func fetchBirthdayBlockVerification(ns walletdb.ReadBucket) bool {
 	}
 
 	// Otherwise, we'll determine if it's verified by the value stored.
-	verified := binary.BigEndian.Uint16(verifiedValue[:])
+	verified := binary.BigEndian.Uint16(verifiedValue)
 	return verified != 0
 }
 
@@ -2155,6 +2447,8 @@ func createManagerNS(ns walletdb.ReadWriteBucket,
 	// Next, we'll create the namespace for each of the relevant default
 	// manager scopes.
 	for scope, scopeSchema := range defaultScopes {
+		scope, scopeSchema := scope, scopeSchema
+
 		// Before we create the entire namespace of this scope, we'll
 		// update the schema mapping to note what types of addresses it
 		// prefers.

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/classzz/classzz/czzec"
+	"github.com/btcsuite/btcd/txscript"
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzutil/hdkeychain"
 	"github.com/classzz/czzwallet/internal/zero"
@@ -34,6 +35,18 @@ const (
 	// type indicates that a scoped manager with this address type
 	// shouldn't be consulted during historical rescans.
 	RawPubKey
+
+	// NestedWitnessPubKey represents a p2wkh output nested within a p2sh
+	// output. Using this address type, the wallet can receive funds from
+	// other wallet's which don't yet recognize the new segwit standard
+	// output types. Receiving funds to this address maintains the
+	// scalability, and malleability fixes due to segwit in a backwards
+	// compatible manner.
+	NestedWitnessPubKey
+
+	// WitnessPubKey represents a p2wkh (pay-to-witness-key-hash) address
+	// type.
+	WitnessPubKey
 )
 
 // ManagedAddress is an interface that provides acces to information regarding
@@ -41,8 +54,8 @@ const (
 // type may provide further fields to provide information specific to that type
 // of address.
 type ManagedAddress interface {
-	// Account returns the account the address is associated with.
-	Account() uint32
+	// Account returns the internal account the address is associated with.
+	InternalAccount() uint32
 
 	// Address returns a czzutil.Address for the backing address.
 	Address() czzutil.Address
@@ -117,7 +130,6 @@ type managedAddress struct {
 	imported         bool
 	internal         bool
 	compressed       bool
-	used             bool
 	addrType         AddressType
 	pubKey           *czzec.PublicKey
 	privKeyEncrypted []byte
@@ -137,6 +149,12 @@ func (a *managedAddress) unlock(key EncryptorDecryptor) ([]byte, error) {
 	// Protect concurrent access to clear text private key.
 	a.privKeyMutex.Lock()
 	defer a.privKeyMutex.Unlock()
+
+	// If the address belongs to a watch-only account, the encrypted private
+	// key won't be present, so we'll return an error.
+	if len(a.privKeyEncrypted) == 0 {
+		return nil, managerError(ErrWatchingOnly, errWatchingOnly, nil)
+	}
 
 	if len(a.privKeyCT) == 0 {
 		privKey, err := key.Decrypt(a.privKeyEncrypted)
@@ -164,11 +182,12 @@ func (a *managedAddress) lock() {
 	a.privKeyMutex.Unlock()
 }
 
-// Account returns the account number the address is associated with.
+// InternalAccount returns the internal account number the address is associated
+// with.
 //
 // This is part of the ManagedAddress interface implementation.
-func (a *managedAddress) Account() uint32 {
-	return a.derivationPath.Account
+func (a *managedAddress) InternalAccount() uint32 {
+	return a.derivationPath.InternalAccount
 }
 
 // AddrType returns the address type of the managed address. This can be used
@@ -197,6 +216,8 @@ func (a *managedAddress) AddrHash() []byte {
 	case *czzutil.AddressPubKeyHash:
 		hash = n.Hash160()[:]
 	case *czzutil.AddressScriptHash:
+		hash = n.Hash160()[:]
+	case *btcutil.AddressWitnessPubKeyHash:
 		hash = n.Hash160()[:]
 	}
 
@@ -341,6 +362,39 @@ func newManagedAddressWithoutPrivKey(m *ScopedKeyManager,
 	var err error
 
 	switch addrType {
+
+	case NestedWitnessPubKey:
+		// For this address type we'l generate an address which is
+		// backwards compatible to Bitcoin nodes running 0.6.0 onwards, but
+		// allows us to take advantage of segwit's scripting improvements,
+		// and malleability fixes.
+
+		// First, we'll generate a normal p2wkh address from the pubkey hash.
+		witAddr, err := btcutil.NewAddressWitnessPubKeyHash(
+			pubKeyHash, m.rootManager.chainParams,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Next we'll generate the witness program which can be used as a
+		// pkScript to pay to this generated address.
+		witnessProgram, err := txscript.PayToAddrScript(witAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		// Finally, we'll use the witness program itself as the pre-image
+		// to a p2sh address. In order to spend, we first use the
+		// witnessProgram as the sigScript, then present the proper
+		// <sig, pubkey> pair as the witness.
+		address, err = btcutil.NewAddressScriptHash(
+			witnessProgram, m.rootManager.chainParams,
+		)
+		if err != nil {
+			return nil, err
+		}
+
 	case PubKeyHash:
 		address, err = czzutil.NewAddressPubKeyHash(
 			pubKeyHash, m.rootManager.chainParams,
@@ -348,11 +402,13 @@ func newManagedAddressWithoutPrivKey(m *ScopedKeyManager,
 		if err != nil {
 			return nil, err
 		}
-	case RawPubKey:
-		if compressed {
-			address, err = czzutil.NewAddressPubKey(pubKey.SerializeCompressed(), m.rootManager.chainParams)
-		} else {
-			address, err = czzutil.NewAddressPubKey(pubKey.SerializeUncompressed(), m.rootManager.chainParams)
+
+	case WitnessPubKey:
+		address, err = btcutil.NewAddressWitnessPubKeyHash(
+			pubKeyHash, m.rootManager.chainParams,
+		)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -494,11 +550,11 @@ func (a *scriptAddress) lock() {
 	a.scriptMutex.Unlock()
 }
 
-// Account returns the account the address is associated with.  This will always
-// be the ImportedAddrAccount constant for script addresses.
+// InternalAccount returns the account the address is associated with. This will
+// always be the ImportedAddrAccount constant for script addresses.
 //
 // This is part of the ManagedAddress interface implementation.
-func (a *scriptAddress) Account() uint32 {
+func (a *scriptAddress) InternalAccount() uint32 {
 	return a.account
 }
 

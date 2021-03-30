@@ -1,37 +1,47 @@
-module github.com/classzz/czzwallet
-
-go 1.15
+module github.com/btcsuite/btcwallet
 
 require (
-	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
-	github.com/aristanetworks/goarista v0.0.0-20201012165903-2cb20defcd66 // indirect
-	github.com/boltdb/bolt v1.3.1
-	github.com/btcsuite/btcd v0.0.0-20190926002857-ba530c4abb35 // indirect
-	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8
-	github.com/btcsuite/snappy-go v1.0.0 // indirect
+	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/btcsuite/btcd v0.20.1-beta.0.20200513120220-b470eee47728
+	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f
+	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
+	github.com/btcsuite/btcutil/psbt v1.0.3-0.20201208143702-a53e38424cce
+	github.com/btcsuite/btcwallet/wallet/txauthor v1.0.0
+	github.com/btcsuite/btcwallet/wallet/txrules v1.0.0
+	github.com/btcsuite/btcwallet/wallet/txsizes v1.0.0
+	github.com/btcsuite/btcwallet/walletdb v1.3.4
+	github.com/btcsuite/btcwallet/wtxmgr v1.2.0
+	github.com/btcsuite/golangcrypto v0.0.0-20150304025918-53f62d9b43e8 // indirect
 	github.com/btcsuite/websocket v0.0.0-20150119174127-31079b680792
-	github.com/classzz/classzz v0.0.0-20210304053857-2adeeb762292
+	github.com/classzz/classzz v3.1.7+incompatible
 	github.com/classzz/czzlog v0.0.0-20190701134521-659346cb927a
-	github.com/classzz/czzutil v0.0.0-20200714085554-7e5f543670fb
-	github.com/classzz/neutrino v0.0.0-20200714085523-aee3913e602c
+	github.com/classzz/czzutil v0.0.0-20210304131042-488cf2183658
+	github.com/classzz/czzwallet v1.0.5
+	github.com/classzz/neutrino v0.0.0-20200714085523-aee3913e602c // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dchest/siphash v1.2.2 // indirect
-	github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea // indirect
-	github.com/gcash/bchlog v0.0.0-20180913005452-b4f036f92fa6
-	github.com/go-ole/go-ole v1.2.5-0.20190920104607-14974a1cf647 // indirect
-	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/golang/protobuf v1.4.2
-	github.com/jessevdk/go-flags v0.0.0-20141203071132-1679536dcc89
+	github.com/golang/lint v0.0.0-20180702182130-06c8688daad7 // indirect
+	github.com/golang/protobuf v1.4.3
+	github.com/jessevdk/go-flags v1.4.0
 	github.com/jrick/logrotate v1.0.0
+	github.com/kisielk/gotool v1.0.0 // indirect
 	github.com/lightninglabs/gozmq v0.0.0-20191113021534-d20a764486bf
-	github.com/miekg/dns v1.1.40
-	github.com/pkg/errors v0.9.1 // indirect
-	github.com/rs/cors v1.6.1-0.20190116175910-76f58f330d76 // indirect
-	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570 // indirect
-	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
-	github.com/tyler-smith/go-bip39 v1.1.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	github.com/lightninglabs/neutrino v0.11.0
+	github.com/stretchr/testify v1.5.1
+	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
+	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
-	google.golang.org/grpc v1.27.1
-	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
+	google.golang.org/grpc v1.36.0
 )
+
+replace github.com/btcsuite/btcwallet/walletdb => ./walletdb
+
+replace github.com/btcsuite/btcwallet/wtxmgr => ./wtxmgr
+
+replace github.com/btcsuite/btcwallet/wallet/txauthor => ./wallet/txauthor
+
+replace github.com/btcsuite/btcwallet/wallet/txrules => ./wallet/txrules
+
+replace github.com/btcsuite/btcwallet/wallet/txsizes => ./wallet/txsizes
+
+go 1.13

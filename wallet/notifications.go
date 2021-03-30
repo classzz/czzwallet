@@ -36,7 +36,6 @@ type NotificationServer struct {
 	currentTxNtfn  *TransactionNotifications // coalesce this since wallet does not add mined txs together
 	spentness      map[uint32][]chan *SpentnessNotifications
 	accountClients []chan *AccountNotification
-	rescanClients  []chan *RescanNotification
 	mu             sync.Mutex // Only protects registered client channels
 	wallet         *Wallet    // smells like hacks
 }
@@ -91,7 +90,7 @@ func lookupOutputChain(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetail
 	if err != nil {
 		log.Errorf("Cannot fetch account for wallet output: %v", err)
 	} else {
-		account = ma.Account()
+		account = ma.InternalAccount()
 		internal = ma.Internal()
 	}
 	return
@@ -135,19 +134,10 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails) T
 			continue
 		}
 		acct, internal := lookupOutputChain(dbtx, w, details, details.Credits[credIndex])
-
-		var outputAddress czzutil.Address
-		_, addrs, _, err := txscript.ExtractPkScriptAddrs(details.MsgTx.TxOut[i].PkScript, w.chainParams)
-		if err == nil && len(addrs) > 0 {
-			outputAddress = addrs[0]
-		}
-
 		output := TransactionSummaryOutput{
 			Index:    uint32(i),
 			Account:  acct,
 			Internal: internal,
-			Address:  outputAddress,
-			Amount:   czzutil.Amount(details.MsgTx.TxOut[i].Value),
 		}
 		outputs = append(outputs, output)
 	}
@@ -158,10 +148,11 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails) T
 		MyOutputs:   outputs,
 		Fee:         fee,
 		Timestamp:   details.Received.Unix(),
+		Label:       details.Label,
 	}
 }
 
-func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]czzutil.Amount) error {
+func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]btcutil.Amount) error {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	unspent, err := w.TxStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))
 	if err != nil {
@@ -264,7 +255,7 @@ func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, detail
 	}
 	txs := s.currentTxNtfn.AttachedBlocks[n-1].Transactions
 	s.currentTxNtfn.AttachedBlocks[n-1].Transactions =
-		append(txs, makeTxSummary(dbtx, s.wallet, details))
+		append(txs, makeTxSummary(dbtx, s.wallet, details)) //  nolint:gocritic
 }
 
 func (s *NotificationServer) notifyAttachedBlock(dbtx walletdb.ReadTx, block *wtxmgr.BlockMeta) {
@@ -375,6 +366,7 @@ type TransactionSummary struct {
 	MyOutputs   []TransactionSummaryOutput
 	Fee         czzutil.Amount
 	Timestamp   int64
+	Label       string
 }
 
 // TransactionSummaryInput describes a transaction input that is relevant to the
@@ -394,8 +386,6 @@ type TransactionSummaryOutput struct {
 	Index    uint32
 	Account  uint32
 	Internal bool
-	Address  czzutil.Address
-	Amount   czzutil.Amount
 }
 
 // AccountBalance associates a total (zero confirmation) balance with an
@@ -497,27 +487,6 @@ func (s *NotificationServer) notifyUnspentOutput(account uint32, hash *chainhash
 	n := &SpentnessNotifications{
 		hash:  hash,
 		index: index,
-	}
-	for _, c := range clients {
-		c <- n
-	}
-}
-
-// notifySpentOutput notifies registered clients that a previously-unspent
-// output is now spent, and includes the spender hash and input index in the
-// notification.
-func (s *NotificationServer) notifySpentOutput(account uint32, op *wire.OutPoint, spenderHash *chainhash.Hash, spenderIndex uint32) {
-	defer s.mu.Unlock()
-	s.mu.Lock()
-	clients := s.spentness[account]
-	if len(clients) == 0 {
-		return
-	}
-	n := &SpentnessNotifications{
-		hash:         &op.Hash,
-		index:        op.Index,
-		spenderHash:  spenderHash,
-		spenderIndex: spenderIndex,
 	}
 	for _, c := range clients {
 		c <- n
@@ -638,76 +607,6 @@ func (c *AccountNotificationsClient) Done() {
 			if c.C == ch {
 				clients[i] = clients[len(clients)-1]
 				s.accountClients = clients[:len(clients)-1]
-				close(ch)
-				break
-			}
-		}
-		s.mu.Unlock()
-	}()
-}
-
-// RescanNotification is a notification which contains the rescan progress.
-// It provides the hash and height the rescan is up to as well as a bool
-// signifying if the rescan is finished.
-type RescanNotification struct {
-	Hash     *chainhash.Hash
-	Height   int32
-	Finished bool
-}
-
-func (s *NotificationServer) notifyRescan(hash *chainhash.Hash, height int32, finished bool) {
-	defer s.mu.Unlock()
-	s.mu.Lock()
-	clients := s.rescanClients
-	if len(clients) == 0 {
-		return
-	}
-	n := &RescanNotification{
-		Hash:     hash,
-		Height:   height,
-		Finished: finished,
-	}
-	for _, c := range clients {
-		c <- n
-	}
-}
-
-// RescanNotificationsClient receives RescanNotifications over the channel C.
-type RescanNotificationsClient struct {
-	C      chan *RescanNotification
-	server *NotificationServer
-}
-
-// RescanNotifications returns a client for receiving RescanNotifications over
-// a channel.  The channel is unbuffered.  When finished, the client's Done
-// method should be called to disassociate the client from the server.
-func (s *NotificationServer) RescanNotifications() RescanNotificationsClient {
-	c := make(chan *RescanNotification)
-	s.mu.Lock()
-	s.rescanClients = append(s.rescanClients, c)
-	s.mu.Unlock()
-	return RescanNotificationsClient{
-		C:      c,
-		server: s,
-	}
-}
-
-// Done deregisters the client from the server and drains any remaining
-// messages.  It must be called exactly once when the client is finished
-// receiving notifications.
-func (c *RescanNotificationsClient) Done() {
-	go func() {
-		for range c.C {
-		}
-	}()
-	go func() {
-		s := c.server
-		s.mu.Lock()
-		clients := s.rescanClients
-		for i, ch := range clients {
-			if c.C == ch {
-				clients[i] = clients[len(clients)-1]
-				s.rescanClients = clients[:len(clients)-1]
 				close(ch)
 				break
 			}

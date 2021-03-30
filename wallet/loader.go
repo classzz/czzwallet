@@ -18,7 +18,12 @@ import (
 )
 
 const (
-	walletDbName = "wallet.db"
+	// WalletDBName specified the database filename for the wallet.
+	WalletDBName = "wallet.db"
+
+	// DefaultDBTimeout is the default timeout value when opening the wallet
+	// database.
+	DefaultDBTimeout = 60 * time.Second
 )
 
 var (
@@ -46,6 +51,8 @@ type Loader struct {
 	callbacks      []func(*Wallet)
 	chainParams    *chaincfg.Params
 	dbDirPath      string
+	noFreelistSync bool
+	timeout        time.Duration
 	recoveryWindow uint32
 	wallet         *Wallet
 	db             walletdb.DB
@@ -56,21 +63,14 @@ type Loader struct {
 // recovery window is non-zero, the wallet will attempt to recovery addresses
 // starting from the last SyncedTo height.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string,
+	noFreelistSync bool, timeout time.Duration,
 	recoveryWindow uint32) *Loader {
 
-	// KeyScopeBIP0044 is a global var. If we are loading the wallet make
-	// sure we set the bip44 coin type to whatever is specified in the params.
-	waddrmgr.KeyScopeBIP0044.Coin = chainParams.HDCoinType
-	waddrmgr.DefaultKeyScopes[0] = waddrmgr.KeyScopeBIP0044
-	waddrmgr.ScopeAddrMap = map[waddrmgr.KeyScope]waddrmgr.ScopeAddrSchema{
-		waddrmgr.KeyScopeBIP0044: {
-			InternalAddrType: waddrmgr.PubKeyHash,
-			ExternalAddrType: waddrmgr.PubKeyHash,
-		},
-	}
 	return &Loader{
 		chainParams:    chainParams,
 		dbDirPath:      dbDirPath,
+		noFreelistSync: noFreelistSync,
+		timeout:        timeout,
 		recoveryWindow: recoveryWindow,
 	}
 }
@@ -108,6 +108,25 @@ func (l *Loader) RunAfterLoad(fn func(*Wallet)) {
 func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte,
 	bday time.Time) (*Wallet, error) {
 
+	return l.createNewWallet(
+		pubPassphrase, privPassphrase, seed, bday, false,
+	)
+}
+
+// CreateNewWatchingOnlyWallet creates a new wallet using the provided
+// public passphrase.  No seed or private passphrase may be provided
+// since the wallet is watching-only.
+func (l *Loader) CreateNewWatchingOnlyWallet(pubPassphrase []byte,
+	bday time.Time) (*Wallet, error) {
+
+	return l.createNewWallet(
+		pubPassphrase, nil, nil, bday, true,
+	)
+}
+
+func (l *Loader) createNewWallet(pubPassphrase, privPassphrase,
+	seed []byte, bday time.Time, isWatchingOnly bool) (*Wallet, error) {
+
 	defer l.mu.Unlock()
 	l.mu.Lock()
 
@@ -115,7 +134,7 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte,
 		return nil, ErrLoaded
 	}
 
-	dbPath := filepath.Join(l.dbDirPath, walletDbName)
+	dbPath := filepath.Join(l.dbDirPath, WalletDBName)
 	exists, err := fileExists(dbPath)
 	if err != nil {
 		return nil, err
@@ -129,17 +148,24 @@ func (l *Loader) CreateNewWallet(pubPassphrase, privPassphrase, seed []byte,
 	if err != nil {
 		return nil, err
 	}
-	db, err := walletdb.Create("bdb", dbPath)
+	db, err := walletdb.Create("bdb", dbPath, l.noFreelistSync, l.timeout)
 	if err != nil {
 		return nil, err
 	}
 
 	// Initialize the newly created database for the wallet before opening.
-	err = Create(
-		db, pubPassphrase, privPassphrase, seed, l.chainParams, bday,
-	)
-	if err != nil {
-		return nil, err
+	if isWatchingOnly {
+		err = CreateWatchingOnly(db, pubPassphrase, l.chainParams, bday)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err = Create(
+			db, pubPassphrase, privPassphrase, seed, l.chainParams, bday,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Open the newly-created wallet.
@@ -177,8 +203,8 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool)
 	}
 
 	// Open the database using the boltdb backend.
-	dbPath := filepath.Join(l.dbDirPath, walletDbName)
-	db, err := walletdb.Open("bdb", dbPath)
+	dbPath := filepath.Join(l.dbDirPath, WalletDBName)
+	db, err := walletdb.Open("bdb", dbPath, l.noFreelistSync, l.timeout)
 	if err != nil {
 		log.Errorf("Failed to open database: %v", err)
 		return nil, err
@@ -216,7 +242,7 @@ func (l *Loader) OpenExistingWallet(pubPassphrase []byte, canConsolePrompt bool)
 // WalletExists returns whether a file exists at the loader's database path.
 // This may return an error for unexpected I/O failures.
 func (l *Loader) WalletExists() (bool, error) {
-	dbPath := filepath.Join(l.dbDirPath, walletDbName)
+	dbPath := filepath.Join(l.dbDirPath, WalletDBName)
 	return fileExists(dbPath)
 }
 
