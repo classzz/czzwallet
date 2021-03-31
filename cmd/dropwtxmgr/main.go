@@ -7,12 +7,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/classzz/czzwallet/wallet"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/classzz/czzutil"
-	"github.com/classzz/czzwallet/waddrmgr"
 	"github.com/classzz/czzwallet/walletdb"
 	_ "github.com/classzz/czzwallet/walletdb/bdb"
 	"github.com/jessevdk/go-flags"

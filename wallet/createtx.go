@@ -15,7 +15,7 @@ import (
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzwallet/waddrmgr"
 	"github.com/classzz/czzwallet/wallet/txauthor"
-	"github.com/btcsuite/btcwallet/wallet/txsizes"
+	"github.com/classzz/czzwallet/wallet/txsizes"
 	"github.com/classzz/czzwallet/walletdb"
 	"github.com/classzz/czzwallet/wtxmgr"
 )
@@ -46,7 +46,7 @@ func makeInputSource(eligible []wtxmgr.Credit) txauthor.InputSource {
 		for currentTotal < target && len(eligible) != 0 {
 			nextCredit := &eligible[0]
 			eligible = eligible[1:]
-			nextInput := wire.NewTxIn(&nextCredit.OutPoint, nil, nil)
+			nextInput := wire.NewTxIn(&nextCredit.OutPoint, nil)
 			currentTotal += nextCredit.Amount
 			currentInputs = append(currentInputs, nextInput)
 			currentScripts = append(currentScripts, nextCredit.PkScript)
@@ -110,7 +110,7 @@ func (s secretSource) GetScript(addr czzutil.Address) ([]byte, error) {
 // the database. A tx created with this set to true will intentionally have no
 // input scripts added and SHOULD NOT be broadcasted.
 func (w *Wallet) txToOutputs(outputs []*wire.TxOut, keyScope *waddrmgr.KeyScope,
-	account uint32, minconf int32, feeSatPerKb btcutil.Amount, dryRun bool) (
+	account uint32, minconf int32, feeSatPerKb czzutil.Amount, dryRun bool) (
 	tx *txauthor.AuthoredTx, err error) {
 
 	chainClient, err := w.requireChainClient()
@@ -188,11 +188,6 @@ func (w *Wallet) txToOutputs(outputs []*wire.TxOut, keyScope *waddrmgr.KeyScope,
 		return nil, err
 	}
 	if !watchOnly {
-		err = tx.AddAllInputScripts(secretSource{w.Manager, addrmgrNs})
-		if err != nil {
-			return nil, err
-		}
-
 		err = validateMsgTx(tx.Tx, tx.PrevScripts, tx.PrevInputValues)
 		if err != nil {
 			return nil, err
@@ -337,7 +332,7 @@ func (w *Wallet) addrMgrWithChangeSource(dbtx walletdb.ReadWriteTx,
 		// from the imported account, change addresses are created from
 		// account 0.
 		var (
-			changeAddr btcutil.Address
+			changeAddr czzutil.Address
 			err        error
 		)
 		if account == waddrmgr.ImportedAddrAccount {

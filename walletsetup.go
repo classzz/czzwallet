@@ -11,15 +11,15 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/internal/legacy/keystore"
-	"github.com/btcsuite/btcwallet/internal/prompt"
-	"github.com/btcsuite/btcwallet/waddrmgr"
-	"github.com/btcsuite/btcwallet/wallet"
-	"github.com/btcsuite/btcwallet/walletdb"
-	_ "github.com/btcsuite/btcwallet/walletdb/bdb"
+	"github.com/classzz/classzz/chaincfg"
+	"github.com/classzz/classzz/wire"
+	"github.com/classzz/czzutil"
+	"github.com/classzz/czzwallet/internal/legacy/keystore"
+	"github.com/classzz/czzwallet/internal/prompt"
+	"github.com/classzz/czzwallet/waddrmgr"
+	"github.com/classzz/czzwallet/wallet"
+	"github.com/classzz/czzwallet/walletdb"
+	_ "github.com/classzz/czzwallet/walletdb/bdb"
 )
 
 // networkDir returns the directory name of a network directory to hold wallet
@@ -59,7 +59,7 @@ func convertLegacyKeystore(legacyKeyStore *keystore.Store, w *wallet.Wallet) {
 				continue
 			}
 
-			wif, err := btcutil.NewWIF(
+			wif, err := czzutil.NewWIF(
 				privKey, netParams, addr.Compressed(),
 			)
 			if err != nil {

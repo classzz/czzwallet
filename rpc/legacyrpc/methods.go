@@ -12,10 +12,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/btcsuite/btcutil"
+	"github.com/classzz/classzz/czzec"
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/classzz/classzz/btcjson"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/chaincfg/chainhash"

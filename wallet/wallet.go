@@ -10,15 +10,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/btcsuite/btcutil"
-	"golang.org/x/net/proxy"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/classzz/classzz/blockchain"
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/classzz/classzz/btcjson"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/chaincfg/chainhash"
@@ -26,6 +23,7 @@ import (
 	"github.com/classzz/classzz/rpcclient"
 	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/classzz/wire"
+	"github.com/classzz/czzutil"
 	"github.com/davecgh/go-spew/spew"
 
 	"github.com/classzz/czzutil"
@@ -37,7 +35,6 @@ import (
 	"github.com/classzz/czzwallet/walletdb"
 	"github.com/classzz/czzwallet/walletdb/migration"
 	"github.com/classzz/czzwallet/wtxmgr"
-	"github.com/davecgh/go-spew/spew"
 )
 
 const (
@@ -315,13 +312,13 @@ func (w *Wallet) SetChainSynced(synced bool) {
 // activeData returns the currently-active receiving addresses and all unspent
 // outputs.  This is primarely intended to provide the parameters for a
 // rescan request.
-func (w *Wallet) activeData(dbtx walletdb.ReadWriteTx) ([]btcutil.Address, []wtxmgr.Credit, error) {
+func (w *Wallet) activeData(dbtx walletdb.ReadWriteTx) ([]czzutil.Address, []wtxmgr.Credit, error) {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-	var addrs []btcutil.Address
+	var addrs []czzutil.Address
 	err := w.Manager.ForEachRelevantActiveAddress(
-		addrmgrNs, func(addr btcutil.Address) error {
+		addrmgrNs, func(addr czzutil.Address) error {
 			addrs = append(addrs, addr)
 			return nil
 		},
@@ -1193,7 +1190,7 @@ out:
 // NOTE: The dryRun argument can be set true to create a tx that doesn't alter
 // the database. A tx created with this set to true SHOULD NOT be broadcasted.
 func (w *Wallet) CreateSimpleTx(keyScope *waddrmgr.KeyScope, account uint32,
-	outputs []*wire.TxOut, minconf int32, satPerKb btcutil.Amount,
+	outputs []*wire.TxOut, minconf int32, satPerKb czzutil.Amount,
 	dryRun bool) (*txauthor.AuthoredTx, error) {
 
 	req := createTxRequest{
@@ -1524,7 +1521,7 @@ func (w *Wallet) CalculateAccountBalances(account uint32, confirms int32) (Balan
 // from a wallet for a particular key-chain scope.  If the address has already
 // been used (there is at least one transaction spending to it in the
 // blockchain or btcd mempool), the next chained address is returned.
-func (w *Wallet) CurrentAddress(account uint32, scope waddrmgr.KeyScope) (btcutil.Address, error) {
+func (w *Wallet) CurrentAddress(account uint32, scope waddrmgr.KeyScope) (czzutil.Address, error) {
 	chainClient, err := w.requireChainClient()
 	if err != nil {
 		return nil, err
@@ -1536,7 +1533,7 @@ func (w *Wallet) CurrentAddress(account uint32, scope waddrmgr.KeyScope) (btcuti
 	}
 
 	var (
-		addr  btcutil.Address
+		addr  czzutil.Address
 		props *waddrmgr.AccountProperties
 	)
 	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
@@ -1572,7 +1569,7 @@ func (w *Wallet) CurrentAddress(account uint32, scope waddrmgr.KeyScope) (btcuti
 	// If the props have been initially, then we had to create a new address
 	// to satisfy the query. Notify the rpc server about the new address.
 	if props != nil {
-		err = chainClient.NotifyReceived([]btcutil.Address{addr})
+		err = chainClient.NotifyReceived([]czzutil.Address{addr})
 		if err != nil {
 			return nil, err
 		}
@@ -1584,8 +1581,8 @@ func (w *Wallet) CurrentAddress(account uint32, scope waddrmgr.KeyScope) (btcuti
 }
 
 // PubKeyForAddress looks up the associated public key for a P2PKH address.
-func (w *Wallet) PubKeyForAddress(a btcutil.Address) (*btcec.PublicKey, error) {
-	var pubKey *btcec.PublicKey
+func (w *Wallet) PubKeyForAddress(a czzutil.Address) (*czzec.PublicKey, error) {
+	var pubKey *czzec.PublicKey
 	err := walletdb.View(w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 		managedAddr, err := w.Manager.Address(addrmgrNs, a)
@@ -2642,10 +2639,10 @@ func (w *Wallet) ListUnspent(minconf, maxconf int32,
 				spendable = true
 			case txscript.PubKeyTy:
 				spendable = true
-			case txscript.WitnessV0ScriptHashTy:
-				spendable = true
-			case txscript.WitnessV0PubKeyHashTy:
-				spendable = true
+			//case txscript.WitnessV0ScriptHashTy:
+			//	spendable = true
+			//case txscript.WitnessV0PubKeyHashTy:
+			//	spendable = true
 			case txscript.MultiSigTy:
 				for _, a := range addrs {
 					_, err := w.Manager.Address(addrmgrNs, a)
@@ -2994,7 +2991,7 @@ func (w *Wallet) NewChangeAddress(account uint32,
 // method in order to detect when an on-chain transaction pays to the address
 // being created.
 func (w *Wallet) newChangeAddress(addrmgrNs walletdb.ReadWriteBucket,
-	account uint32, scope waddrmgr.KeyScope) (btcutil.Address, error) {
+	account uint32, scope waddrmgr.KeyScope) (czzutil.Address, error) {
 
 	manager, err := w.Manager.FetchScopedKeyManager(scope)
 	if err != nil {
@@ -3161,7 +3158,7 @@ func (w *Wallet) TotalReceivedForAddr(addr czzutil.Address, minConf int32) (czzu
 // to fund a PSBT with inputs regardless of their type (NP2WKH, P2WKH, etc.). It
 // returns the transaction upon success.
 func (w *Wallet) SendOutputs(outputs []*wire.TxOut, keyScope *waddrmgr.KeyScope,
-	account uint32, minconf int32, satPerKb btcutil.Amount,
+	account uint32, minconf int32, satPerKb czzutil.Amount,
 	label string) (*wire.MsgTx, error) {
 
 	// Ensure the outputs to be created adhere to the network's consensus
@@ -3408,7 +3405,7 @@ func (w *Wallet) reliablyPublishTransaction(tx *wire.MsgTx,
 
 	// Along the way, we'll extract our relevant destination addresses from
 	// the transaction.
-	var ourAddrs []btcutil.Address
+	var ourAddrs []czzutil.Address
 	err = walletdb.Update(w.db, func(dbTx walletdb.ReadWriteTx) error {
 		addrmgrNs := dbTx.ReadWriteBucket(waddrmgrNamespaceKey)
 		for _, txOut := range tx.TxOut {

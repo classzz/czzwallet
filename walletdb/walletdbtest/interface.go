@@ -5,11 +5,11 @@
 package walletdbtest
 
 import (
+	"bytes"
 	"fmt"
-	"os"
-	"reflect"
-
 	"github.com/classzz/czzwallet/walletdb"
+	"reflect"
+	"sync"
 )
 
 // errSubTestFail is used to signal that a sub test returned false.

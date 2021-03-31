@@ -6,12 +6,15 @@
 package wallet
 
 import (
-	"github.com/classzz/classzz/txscript"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil/hdkeychain"
+	"errors"
+	"fmt"
 	"github.com/btcsuite/btcutil/psbt"
+	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/classzz/wire"
+	"github.com/classzz/czzwallet/waddrmgr"
 	"github.com/classzz/czzwallet/walletdb"
+)
+
 var (
 	// ErrNotMine is an error denoting that a Wallet instance is unable to
 	// spend a specified output.
@@ -124,15 +127,15 @@ func (w *Wallet) FetchInputInfo(prevOut *wire.OutPoint) (*wire.MsgTx,
 			numOutputs)
 	}
 	pkScript := txDetail.TxRecord.MsgTx.TxOut[prevOut.Index].PkScript
-	addr, err := w.fetchOutputAddr(pkScript)
-	if err != nil {
-		return nil, nil, nil, 0, err
-	}
-	pubKeyAddr, ok := addr.(waddrmgr.ManagedPubKeyAddress)
-	if !ok {
-		return nil, nil, nil, 0, err
-	}
-	keyScope, derivationPath, _ := pubKeyAddr.DerivationInfo()
+	//addr, err := w.fetchOutputAddr(pkScript)
+	//if err != nil {
+	//	return nil, nil, nil, 0, err
+	//}
+	//pubKeyAddr, ok := addr.(waddrmgr.ManagedPubKeyAddress)
+	//if !ok {
+	//	return nil, nil, nil, 0, err
+	//}
+	//keyScope, derivationPath, _ := pubKeyAddr.DerivationInfo()
 
 	// Determine the number of confirmations the output currently has.
 	_, currentHeight, err := w.chainClient.GetBestBlock()
@@ -148,17 +151,19 @@ func (w *Wallet) FetchInputInfo(prevOut *wire.OutPoint) (*wire.MsgTx,
 	return &txDetail.TxRecord.MsgTx, &wire.TxOut{
 			Value:    txDetail.TxRecord.MsgTx.TxOut[prevOut.Index].Value,
 			PkScript: pkScript,
-		}, &psbt.Bip32Derivation{
-			PubKey:               pubKeyAddr.PubKey().SerializeCompressed(),
-			MasterKeyFingerprint: derivationPath.MasterKeyFingerprint,
-			Bip32Path: []uint32{
-				keyScope.Purpose + hdkeychain.HardenedKeyStart,
-				keyScope.Coin + hdkeychain.HardenedKeyStart,
-				derivationPath.Account,
-				derivationPath.Branch,
-				derivationPath.Index,
-			},
-		}, confs, nil
+		}, nil,
+		//&psbt.Bip32Derivation{
+		//	PubKey:               pubKeyAddr.PubKey().SerializeCompressed(),
+		//	MasterKeyFingerprint: derivationPath.MasterKeyFingerprint,
+		//	Bip32Path: []uint32{
+		//		keyScope.Purpose + hdkeychain.HardenedKeyStart,
+		//		keyScope.Coin + hdkeychain.HardenedKeyStart,
+		//		derivationPath.Account,
+		//		derivationPath.Branch,
+		//		derivationPath.Index,
+		//	},
+		//},
+		confs, nil
 }
 
 // fetchOutputAddr attempts to fetch the managed address corresponding to the

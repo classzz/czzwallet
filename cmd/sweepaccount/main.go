@@ -12,7 +12,6 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"github.com/btcsuite/btcwallet/wallet/txsizes"
 	"github.com/classzz/classzz/btcjson"
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/rpcclient"
@@ -23,6 +22,7 @@ import (
 	"github.com/classzz/czzwallet/netparams"
 	"github.com/classzz/czzwallet/wallet/txauthor"
 	"github.com/classzz/czzwallet/wallet/txrules"
+	"github.com/classzz/czzwallet/wallet/txsizes"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -149,7 +149,7 @@ func makeInputSource(outputs []btcjson.ListUnspentResult) txauthor.InputSource {
 	for _, output := range outputs {
 		output := output
 
-		outputAmount, err := btcutil.NewAmount(output.Amount)
+		outputAmount, err := czzutil.NewAmount(output.Amount)
 		if err != nil {
 			sourceErr = fmt.Errorf(
 				"invalid amount `%v` in listunspent result",
@@ -175,7 +175,7 @@ func makeInputSource(outputs []btcjson.ListUnspentResult) txauthor.InputSource {
 			break
 		}
 
-		inputs = append(inputs, wire.NewTxIn(&previousOutPoint, nil, nil))
+		inputs = append(inputs, wire.NewTxIn(&previousOutPoint, nil))
 		inputValues = append(inputValues, outputAmount)
 	}
 

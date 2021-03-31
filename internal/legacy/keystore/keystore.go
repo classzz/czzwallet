@@ -24,7 +24,6 @@ import (
 
 	"golang.org/x/crypto/ripemd160"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/czzec"
@@ -496,7 +495,7 @@ func (net *netParams) WriteTo(w io.Writer) (int64, error) {
 // Stringified byte slices for use as map lookup keys.
 type addressKey string
 
-func getAddressKey(addr btcutil.Address) addressKey {
+func getAddressKey(addr czzutil.Address) addressKey {
 	return addressKey(addr.ScriptAddress())
 }
 

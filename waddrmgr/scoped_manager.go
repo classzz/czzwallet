@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/btcsuite/btcd/btcec"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/czzec"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzutil/hdkeychain"
 	"github.com/classzz/czzwallet/internal/zero"
@@ -676,14 +675,14 @@ func (s *ScopedKeyManager) importedAddressRowToManaged(row *dbImportedAddressRow
 		return nil, managerError(ErrCrypto, str, err)
 	}
 
-	pubKey, err := btcec.ParsePubKey(pubBytes, btcec.S256())
+	pubKey, err := czzec.ParsePubKey(pubBytes, czzec.S256())
 	if err != nil {
 		str := "invalid public key for imported address"
 		return nil, managerError(ErrCrypto, str, err)
 	}
 
 	// TODO: Handle imported key being part of internal branch.
-	compressed := len(pubBytes) == btcec.PubKeyBytesLenCompressed
+	compressed := len(pubBytes) == czzec.PubKeyBytesLenCompressed
 	ma, err := newManagedAddressWithoutPrivKey(
 		s, ImportedDerivationPath, pubKey, compressed,
 		s.addrSchema.ExternalAddrType,
@@ -1769,7 +1768,7 @@ func (s *ScopedKeyManager) ImportPrivateKey(ns walletdb.ReadWriteBucket,
 	if !s.rootManager.WatchOnly() {
 		return s.toImportedPrivateManagedAddress(wif)
 	}
-	pubKey := (*btcec.PublicKey)(&wif.PrivKey.PublicKey)
+	pubKey := (*czzec.PublicKey)(&wif.PrivKey.PublicKey)
 	return s.toImportedPublicManagedAddress(pubKey, wif.CompressPubKey)
 }
 
@@ -1778,7 +1777,7 @@ func (s *ScopedKeyManager) ImportPrivateKey(ns walletdb.ReadWriteBucket,
 // All imported addresses will be part of the account defined by the
 // ImportedAddrAccount constant.
 func (s *ScopedKeyManager) ImportPublicKey(ns walletdb.ReadWriteBucket,
-	pubKey *btcec.PublicKey, bs *BlockStamp) (ManagedAddress, error) {
+	pubKey *czzec.PublicKey, bs *BlockStamp) (ManagedAddress, error) {
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -1805,21 +1804,21 @@ func (s *ScopedKeyManager) importPublicKey(ns walletdb.ReadWriteBucket,
 	var addressID []byte
 	switch addrType {
 	case PubKeyHash, WitnessPubKey:
-		addressID = btcutil.Hash160(serializedPubKey)
+		addressID = czzutil.Hash160(serializedPubKey)
 
-	case NestedWitnessPubKey:
-		pubKeyHash := btcutil.Hash160(serializedPubKey)
-		p2wkhAddr, err := btcutil.NewAddressWitnessPubKeyHash(
-			pubKeyHash, s.rootManager.chainParams,
-		)
-		if err != nil {
-			return err
-		}
-		witnessScript, err := txscript.PayToAddrScript(p2wkhAddr)
-		if err != nil {
-			return err
-		}
-		addressID = btcutil.Hash160(witnessScript)
+	//case NestedWitnessPubKey:
+	//	pubKeyHash := czzutil.Hash160(serializedPubKey)
+	//	p2wkhAddr, err := czzutil.NewAddressWitnessPubKeyHash(
+	//		pubKeyHash, s.rootManager.chainParams,
+	//	)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	witnessScript, err := txscript.PayToAddrScript(p2wkhAddr)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	addressID = czzutil.Hash160(witnessScript)
 
 	default:
 		return fmt.Errorf("unsupported address type %v", addrType)
@@ -1881,7 +1880,7 @@ func (s *ScopedKeyManager) importPublicKey(ns walletdb.ReadWriteBucket,
 // toImportedPrivateManagedAddress converts an imported private key to an
 // imported managed address.
 func (s *ScopedKeyManager) toImportedPrivateManagedAddress(
-	wif *btcutil.WIF) (*managedAddress, error) {
+	wif *czzutil.WIF) (*managedAddress, error) {
 
 	// Create a new managed address based on the imported address.
 	//
@@ -1904,7 +1903,7 @@ func (s *ScopedKeyManager) toImportedPrivateManagedAddress(
 // toPublicManagedAddress converts an imported public key to an imported managed
 // address.
 func (s *ScopedKeyManager) toImportedPublicManagedAddress(
-	pubKey *btcec.PublicKey, compressed bool) (*managedAddress, error) {
+	pubKey *czzec.PublicKey, compressed bool) (*managedAddress, error) {
 
 	// Create a new managed address based on the imported address.
 	//
@@ -2163,7 +2162,7 @@ func (s *ScopedKeyManager) ForEachActiveAddress(ns walletdb.ReadBucket,
 // ForEachInternalActiveAddress invokes the given closure on each _internal_
 // active address belonging to the scoped key manager, breaking early on error.
 func (s *ScopedKeyManager) ForEachInternalActiveAddress(ns walletdb.ReadBucket,
-	fn func(addr btcutil.Address) error) error {
+	fn func(addr czzutil.Address) error) error {
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()

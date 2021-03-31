@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/internal/cfgutil"
-	"github.com/btcsuite/btcwallet/internal/legacy/keystore"
-	"github.com/btcsuite/btcwallet/netparams"
-	"github.com/btcsuite/btcwallet/wallet"
+	"github.com/classzz/czzutil"
+	"github.com/classzz/czzwallet/internal/cfgutil"
+	"github.com/classzz/czzwallet/internal/legacy/keystore"
+	"github.com/classzz/czzwallet/netparams"
+	"github.com/classzz/czzwallet/wallet"
 	flags "github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/neutrino"
 )
@@ -35,8 +35,8 @@ const (
 )
 
 var (
-	btcdDefaultCAFile  = filepath.Join(btcutil.AppDataDir("btcd", false), "rpc.cert")
-	defaultAppDataDir  = btcutil.AppDataDir("btcwallet", false)
+	btcdDefaultCAFile  = filepath.Join(czzutil.AppDataDir("btcd", false), "rpc.cert")
+	defaultAppDataDir  = czzutil.AppDataDir("btcwallet", false)
 	defaultConfigFile  = filepath.Join(defaultAppDataDir, defaultConfigFilename)
 	defaultRPCKeyFile  = filepath.Join(defaultAppDataDir, "rpc.key")
 	defaultRPCCertFile = filepath.Join(defaultAppDataDir, "rpc.cert")
@@ -358,7 +358,7 @@ func loadConfig() (*config, []string, error) {
 	// Multiple networks can't be selected simultaneously.
 	numNets := 0
 	if cfg.TestNet3 {
-		activeNet = &netparams.TestNet3Params
+		activeNet = &netparams.TestNetParams
 		numNets++
 	}
 	if cfg.SimNet {

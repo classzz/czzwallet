@@ -3,6 +3,7 @@ package chain
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"

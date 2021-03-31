@@ -817,7 +817,7 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr czzu
 // addresses could be created outside of the default key scopes, we now need to
 // check for those as well.
 func (m *Manager) ForEachRelevantActiveAddress(ns walletdb.ReadBucket,
-	fn func(addr btcutil.Address) error) error {
+	fn func(addr czzutil.Address) error) error {
 
 	m.mtx.RLock()
 	defer m.mtx.RUnlock()

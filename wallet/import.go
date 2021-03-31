@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/btcsuite/btcwallet/waddrmgr"
-	"github.com/btcsuite/btcwallet/walletdb"
+	"github.com/classzz/classzz/czzec"
+	"github.com/classzz/classzz/wire"
+	"github.com/classzz/czzutil"
+	"github.com/classzz/czzutil/hdkeychain"
+	"github.com/classzz/czzwallet/waddrmgr"
+	"github.com/classzz/czzwallet/walletdb"
 )
 
 const (
@@ -218,7 +218,7 @@ func (w *Wallet) ImportAccount(name string, accountPubKey *hdkeychain.ExtendedKe
 // case of legacy versions (xpub, tpub), an address type must be specified as we
 // intend to not support importing BIP-44 keys into the wallet using the legacy
 // pay-to-pubkey-hash (P2PKH) scheme.
-func (w *Wallet) ImportPublicKey(pubKey *btcec.PublicKey,
+func (w *Wallet) ImportPublicKey(pubKey *czzec.PublicKey,
 	addrType waddrmgr.AddressType) error {
 
 	// Determine what key scope the public key should belong to and import
@@ -251,7 +251,7 @@ func (w *Wallet) ImportPublicKey(pubKey *btcec.PublicKey,
 
 	log.Infof("Imported address %v", addr.Address())
 
-	err = w.chainClient.NotifyReceived([]btcutil.Address{addr.Address()})
+	err = w.chainClient.NotifyReceived([]czzutil.Address{addr.Address()})
 	if err != nil {
 		return fmt.Errorf("unable to subscribe for address "+
 			"notifications: %v", err)
@@ -265,7 +265,7 @@ func (w *Wallet) ImportPublicKey(pubKey *btcec.PublicKey,
 //
 // NOTE: If a block stamp is not provided, then the wallet's birthday will be
 // set to the genesis block of the corresponding chain.
-func (w *Wallet) ImportPrivateKey(scope waddrmgr.KeyScope, wif *btcutil.WIF,
+func (w *Wallet) ImportPrivateKey(scope waddrmgr.KeyScope, wif *czzutil.WIF,
 	bs *waddrmgr.BlockStamp, rescan bool) (string, error) {
 
 	manager, err := w.Manager.FetchScopedKeyManager(scope)
@@ -291,7 +291,7 @@ func (w *Wallet) ImportPrivateKey(scope waddrmgr.KeyScope, wif *btcutil.WIF,
 	}
 
 	// Attempt to import private key into wallet.
-	var addr btcutil.Address
+	var addr czzutil.Address
 	var props *waddrmgr.AccountProperties
 	err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
@@ -337,7 +337,7 @@ func (w *Wallet) ImportPrivateKey(scope waddrmgr.KeyScope, wif *btcutil.WIF,
 	// imported address.
 	if rescan {
 		job := &RescanJob{
-			Addrs:      []btcutil.Address{addr},
+			Addrs:      []czzutil.Address{addr},
 			OutPoints:  nil,
 			BlockStamp: *bs,
 		}
@@ -348,7 +348,7 @@ func (w *Wallet) ImportPrivateKey(scope waddrmgr.KeyScope, wif *btcutil.WIF,
 		// required to be read, so discard the return value.
 		_ = w.SubmitRescan(job)
 	} else {
-		err := w.chainClient.NotifyReceived([]btcutil.Address{addr})
+		err := w.chainClient.NotifyReceived([]czzutil.Address{addr})
 		if err != nil {
 			return "", fmt.Errorf("failed to subscribe for address ntfns for "+
 				"address %s: %s", addr.EncodeAddress(), err)

@@ -6,12 +6,10 @@ package wallet
 
 import (
 	"fmt"
-
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/classzz/classzz/czzec"
+	"github.com/classzz/classzz/txscript"
+	"github.com/classzz/classzz/wire"
+	"github.com/classzz/czzwallet/waddrmgr"
 )
 
 // scriptForOutput returns the address, witness program and redeem script for a
@@ -41,31 +39,31 @@ func (w *Wallet) scriptForOutput(output *wire.TxOut) (
 	switch {
 	// If we're spending p2wkh output nested within a p2sh output, then
 	// we'll need to attach a sigScript in addition to witness data.
-	case walletAddr.AddrType() == waddrmgr.NestedWitnessPubKey:
-		pubKey := pubKeyAddr.PubKey()
-		pubKeyHash := btcutil.Hash160(pubKey.SerializeCompressed())
+	//case walletAddr.AddrType() == waddrmgr.NestedWitnessPubKey:
+	//pubKey := pubKeyAddr.PubKey()
+	//pubKeyHash := czzutil.Hash160(pubKey.SerializeCompressed())
 
-		// Next, we'll generate a valid sigScript that will allow us to
-		// spend the p2sh output. The sigScript will contain only a
-		// single push of the p2wkh witness program corresponding to
-		// the matching public key of this address.
-		p2wkhAddr, err := btcutil.NewAddressWitnessPubKeyHash(
-			pubKeyHash, w.chainParams,
-		)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		witnessProgram, err = txscript.PayToAddrScript(p2wkhAddr)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		bldr := txscript.NewScriptBuilder()
-		bldr.AddData(witnessProgram)
-		sigScript, err = bldr.Script()
-		if err != nil {
-			return nil, nil, nil, err
-		}
+	// Next, we'll generate a valid sigScript that will allow us to
+	// spend the p2sh output. The sigScript will contain only a
+	// single push of the p2wkh witness program corresponding to
+	// the matching public key of this address.
+	//p2wkhAddr, err := czzutil.NewAddressWitnessPubKeyHash(
+	//	pubKeyHash, w.chainParams,
+	//)
+	//if err != nil {
+	//	return nil, nil, nil, err
+	//}
+	//witnessProgram, err = txscript.PayToAddrScript(p2wkhAddr)
+	//if err != nil {
+	//	return nil, nil, nil, err
+	//}
+	//
+	//bldr := txscript.NewScriptBuilder()
+	//bldr.AddData(witnessProgram)
+	//sigScript, err = bldr.Script()
+	//if err != nil {
+	//	return nil, nil, nil, err
+	//}
 
 	// Otherwise, this is a regular p2wkh output, so we include the
 	// witness program itself as the subscript to generate the proper
@@ -81,7 +79,7 @@ func (w *Wallet) scriptForOutput(output *wire.TxOut) (
 
 // PrivKeyTweaker is a function type that can be used to pass in a callback for
 // tweaking a private key before it's used to sign an input.
-type PrivKeyTweaker func(*btcec.PrivateKey) (*btcec.PrivateKey, error)
+type PrivKeyTweaker func(*czzec.PrivateKey) (*czzec.PrivateKey, error)
 
 // ComputeInputScript generates a complete InputScript for the passed
 // transaction with the signature as defined within the passed SignDescriptor.
@@ -92,7 +90,7 @@ func (w *Wallet) ComputeInputScript(tx *wire.MsgTx, output *wire.TxOut,
 	hashType txscript.SigHashType, tweaker PrivKeyTweaker) (wire.TxWitness,
 	[]byte, error) {
 
-	walletAddr, witnessProgram, sigScript, err := w.scriptForOutput(output)
+	walletAddr, _, sigScript, err := w.scriptForOutput(output)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,13 +109,13 @@ func (w *Wallet) ComputeInputScript(tx *wire.MsgTx, output *wire.TxOut,
 	}
 
 	// Generate a valid witness stack for the input.
-	witnessScript, err := txscript.WitnessSignature(
-		tx, sigHashes, inputIndex, output.Value, witnessProgram,
-		hashType, privKey, true,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
+	//witnessScript, err := txscript.WitnessSignature(
+	//	tx, sigHashes, inputIndex, output.Value, witnessProgram,
+	//	hashType, privKey, true,
+	//)
+	//if err != nil {
+	//	return nil, nil, err
+	//}
 
-	return witnessScript, sigScript, nil
+	return nil, sigScript, nil
 }

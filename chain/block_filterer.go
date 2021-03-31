@@ -2,7 +2,6 @@ package chain
 
 import (
 	"github.com/classzz/classzz/chaincfg"
-	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"

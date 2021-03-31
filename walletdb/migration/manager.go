@@ -2,9 +2,8 @@ package migration
 
 import (
 	"errors"
-	"sort"
-
 	"github.com/classzz/czzwallet/walletdb"
+	"sort"
 )
 
 var (

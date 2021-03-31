@@ -18,12 +18,7 @@ package rpcserver
 import (
 	"bytes"
 	"errors"
-	"github.com/classzz/czzwallet/pymtproto"
-	"github.com/classzz/czzwallet/wallet/txsizes"
-	"github.com/tyler-smith/go-bip39"
-	"google.golang.org/grpc/status"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/context"
