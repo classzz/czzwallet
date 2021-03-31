@@ -12,10 +12,11 @@ import (
 	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"
+	"github.com/classzz/czzutil/gcs"
+	"github.com/classzz/czzutil/gcs/builder"
 	"github.com/classzz/czzwallet/waddrmgr"
 	"github.com/classzz/czzwallet/wtxmgr"
 	"github.com/classzz/neutrino"
-	"github.com/classzz/neutrino/headerfs"
 )
 
 // NeutrinoClient is an implementation of the bchwalet chain.Interface interface.
@@ -318,9 +319,9 @@ func (s *NeutrinoClient) pollCFilter(hash *chainhash.Hash) (*gcs.Filter, error) 
 			time.Sleep(100 * time.Millisecond)
 		}
 
-		filter, err = s.CS.GetCFilter(
-			*hash, wire.GCSFilterRegular, neutrino.OptimisticBatch(),
-		)
+		//filter, err = s.CS.GetCFilter(
+		//	*hash, wire.GCSFilterRegular, neutrino.OptimisticBatch(),
+		//)
 		if err != nil {
 			count++
 			continue
@@ -418,7 +419,7 @@ func (s *NeutrinoClient) Rescan(startHash *chainhash.Hash, addrs []czzutil.Addre
 			OnFilteredBlockConnected: s.onFilteredBlockConnected,
 			OnBlockDisconnected:      s.onBlockDisconnected,
 		}),
-		neutrino.StartBlock(&headerfs.BlockStamp{Hash: *startHash}),
+		//neutrino.StartBlock(&headerfs.BlockStamp{Hash: *startHash}),
 		neutrino.StartTime(s.startTime),
 		neutrino.QuitChan(s.rescanQuit),
 		neutrino.WatchAddrs(addrs...),

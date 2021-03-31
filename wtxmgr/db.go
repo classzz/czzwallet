@@ -91,7 +91,7 @@ func fetchMinedBalance(ns walletdb.ReadBucket) (czzutil.Amount, error) {
 			"read %v)", len(v))
 		return 0, storeError(ErrData, str, nil)
 	}
-	return btcutil.Amount(byteOrder.Uint64(v)), nil
+	return czzutil.Amount(byteOrder.Uint64(v)), nil
 }
 
 func putMinedBalance(ns walletdb.ReadWriteBucket, amt czzutil.Amount) error {

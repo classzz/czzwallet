@@ -7,6 +7,9 @@ package wtxmgr
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/classzz/classzz/blockchain"
@@ -15,6 +18,8 @@ import (
 	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzwallet/walletdb"
+	"github.com/lightningnetwork/lnd/clock"
+)
 
 const (
 	// TxLabelLimit is the length limit we impose on transaction labels.

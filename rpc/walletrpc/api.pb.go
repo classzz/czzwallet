@@ -1035,6 +1035,8 @@ type SignTransactionRequest struct {
 	// transaction if any of the inputs to be signed can not be, the RPC
 	// immediately errors.
 	InputIndexes []uint32 `protobuf:"varint,3,rep,packed,name=input_indexes,json=inputIndexes" json:"input_indexes,omitempty"`
+
+	InputValues          []int64  `protobuf:"varint,4,rep,packed,name=input_values,json=inputValues,proto3" json:"input_values,omitempty"`
 }
 
 func (m *SignTransactionRequest) Reset()                    { *m = SignTransactionRequest{} }

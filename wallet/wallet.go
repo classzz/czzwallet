@@ -20,13 +20,11 @@ import (
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/czzec"
-	"github.com/classzz/classzz/rpcclient"
 	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/classzz/czzutil"
 	"github.com/classzz/czzutil/hdkeychain"
 	"github.com/classzz/czzwallet/chain"
 	"github.com/classzz/czzwallet/waddrmgr"
@@ -3212,7 +3210,7 @@ type SignatureError struct {
 // being unable to determine a previous output script to redeem.
 //
 // The transaction pointed to by tx is modified by this function.
-func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
+func (w *Wallet) SignTransaction(tx *wire.MsgTx, inputValues []int64, hashType txscript.SigHashType,
 	additionalPrevScripts map[wire.OutPoint][]byte,
 	additionalKeysByAddress map[string]*czzutil.WIF,
 	p2shRedeemScriptsByAddress map[string][]byte) ([]SignatureError, error) {
@@ -3222,7 +3220,17 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
+		lookupInputValues := len(inputValues) == 0
+
 		for i, txIn := range tx.TxIn {
+			var amount int64
+
+			// If we aren't looking them up, then we have an inputValue
+			// for each input.
+			if !lookupInputValues {
+				amount = inputValues[i]
+			}
+
 			prevOutScript, ok := additionalPrevScripts[txIn.PreviousOutPoint]
 			if !ok {
 				prevHash := &txIn.PreviousOutPoint.Hash
@@ -3300,7 +3308,7 @@ func (w *Wallet) SignTransaction(tx *wire.MsgTx, hashType txscript.SigHashType,
 				txscript.SigHashSingle || i < len(tx.TxOut) {
 
 				script, err := txscript.SignTxOutput(w.ChainParams(),
-					tx, i, prevOutScript, hashType, getKey,
+					tx, i, amount, prevOutScript, hashType, getKey,
 					getScript, txIn.SignatureScript)
 				// Failure to sign isn't an error, it just means that
 				// the tx isn't complete.

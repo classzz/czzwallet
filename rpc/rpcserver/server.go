@@ -105,7 +105,6 @@ type versionServer struct {
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
-	ready  uint32 // atomic
 	wallet *wallet.Wallet
 }
 
@@ -462,7 +461,7 @@ func (s *walletServer) SignTransaction(ctx context.Context, req *pb.SignTransact
 		return nil, translateError(err)
 	}
 
-	invalidSigs, err := s.wallet.SignTransaction(&tx, txscript.SigHashAll, nil, nil, nil)
+	invalidSigs, err := s.wallet.SignTransaction(&tx, req.InputValues, txscript.SigHashAll, nil, nil, nil)
 	if err != nil {
 		return nil, translateError(err)
 	}

@@ -254,7 +254,7 @@ func (c *RPCClient) FilterBlocks(
 		log.Infof("Fetching block height=%d hash=%v",
 			blk.Height, blk.Hash)
 
-		rawBlock, err := c.GetBlock(blk.Hash.String())
+		rawBlock, err := c.GetBlock(&blk.Hash)
 		if err != nil {
 			return nil, err
 		}

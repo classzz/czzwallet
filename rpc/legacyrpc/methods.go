@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/btcsuite/btcutil"
 	"github.com/classzz/classzz/czzec"
 	"sync"
 	"time"
@@ -1354,7 +1353,7 @@ func makeOutputs(pairs map[string]czzutil.Amount, chainParams *chaincfg.Params) 
 // All errors are returned in btcjson.RPCError format
 func sendPairs(w *wallet.Wallet, amounts map[string]czzutil.Amount,
 	keyScope waddrmgr.KeyScope, account uint32, minconf int32,
-	feeSatPerKb btcutil.Amount) (string, error) {
+	feeSatPerKb czzutil.Amount) (string, error) {
 
 	outputs, err := makeOutputs(amounts, w.ChainParams())
 	if err != nil {
@@ -1593,6 +1592,7 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 	if cmd.Inputs != nil {
 		cmdInputs = *cmd.Inputs
 	}
+	var inputValues []int64
 	for _, rti := range cmdInputs {
 		inputHash, err := chainhash.NewHashFromStr(rti.Txid)
 		if err != nil {
@@ -1616,7 +1616,7 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 				return nil, err
 			}
 
-			addr, err := btcutil.NewAddressScriptHash(redeemScript,
+			addr, err := czzutil.NewAddressScriptHash(redeemScript,
 				w.ChainParams())
 			if err != nil {
 				return nil, DeserializationError{err}
@@ -1627,6 +1627,11 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 			Hash:  *inputHash,
 			Index: rti.Vout,
 		}] = script
+		amt, err := czzutil.NewAmount(rti.Amount)
+		if err != nil {
+			return nil, DeserializationError{err}
+		}
+		inputValues = append(inputValues, int64(amt.ToUnit(czzutil.AmountSatoshi)))
 	}
 
 	// Now we go and look for any inputs that we were not provided by
@@ -1664,15 +1669,13 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 				return nil, DeserializationError{errors.New(s)}
 			}
 
-			//addr, err := czzutil.NewAddressPubKey(wif.SerializePubKey(),
-			//	w.ChainParams())
 			address, err := czzutil.NewAddressPubKeyHash(
 				czzutil.Hash160(wif.SerializePubKey()), w.ChainParams())
 
 			if err != nil {
 				return nil, DeserializationError{err}
 			}
-			keys[addr.EncodeAddress()] = wif
+			keys[address.String()] = wif
 		}
 	}
 
@@ -1695,7 +1698,7 @@ func signRawTransaction(icmd interface{}, w *wallet.Wallet, chainClient *chain.R
 	// `complete' denotes that we successfully signed all outputs and that
 	// all scripts will run to completion. This is returned as part of the
 	// reply.
-	signErrs, err := w.SignTransaction(&tx, hashType, inputs, keys, scripts)
+	signErrs, err := w.SignTransaction(&tx, inputValues, hashType, inputs, keys, scripts)
 	if err != nil {
 		return nil, err
 	}
