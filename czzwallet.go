@@ -18,7 +18,7 @@ import (
 	"github.com/classzz/czzwallet/rpc/legacyrpc"
 	"github.com/classzz/czzwallet/wallet"
 	"github.com/classzz/czzwallet/walletdb"
-	"github.com/lightninglabs/neutrino"
+	"github.com/classzz/neutrino"
 )
 
 var (

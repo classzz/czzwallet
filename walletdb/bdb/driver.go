@@ -6,6 +6,7 @@ package bdb
 
 import (
 	"fmt"
+	"github.com/classzz/czzwallet/walletdb"
 	"time"
 )
 

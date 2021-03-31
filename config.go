@@ -20,8 +20,8 @@ import (
 	"github.com/classzz/czzwallet/internal/legacy/keystore"
 	"github.com/classzz/czzwallet/netparams"
 	"github.com/classzz/czzwallet/wallet"
+	"github.com/classzz/neutrino"
 	flags "github.com/jessevdk/go-flags"
-	"github.com/lightninglabs/neutrino"
 )
 
 const (

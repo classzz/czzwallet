@@ -6,6 +6,7 @@
 package waddrmgr
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/czzwallet/walletdb"
+)
+
 const (
 	// MaxReorgDepth represents the maximum number of block hashes we'll
 	// keep within the wallet at any given point in order to recover from
