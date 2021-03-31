@@ -25,18 +25,18 @@ import (
 )
 
 const (
-	defaultCAFilename       = "btcd.cert"
-	defaultConfigFilename   = "btcwallet.conf"
+	defaultCAFilename       = "czzd.cert"
+	defaultConfigFilename   = "czzwallet.conf"
 	defaultLogLevel         = "info"
 	defaultLogDirname       = "logs"
-	defaultLogFilename      = "btcwallet.log"
+	defaultLogFilename      = "czzwallet.log"
 	defaultRPCMaxClients    = 10
 	defaultRPCMaxWebsockets = 25
 )
 
 var (
-	btcdDefaultCAFile  = filepath.Join(czzutil.AppDataDir("btcd", false), "rpc.cert")
-	defaultAppDataDir  = czzutil.AppDataDir("btcwallet", false)
+	btcdDefaultCAFile  = filepath.Join(czzutil.AppDataDir("czzd", false), "rpc.cert")
+	defaultAppDataDir  = czzutil.AppDataDir("czzwallet", false)
 	defaultConfigFile  = filepath.Join(defaultAppDataDir, defaultConfigFilename)
 	defaultRPCKeyFile  = filepath.Join(defaultAppDataDir, "rpc.key")
 	defaultRPCCertFile = filepath.Join(defaultAppDataDir, "rpc.cert")
@@ -65,8 +65,8 @@ type config struct {
 	RPCConnect       string                  `short:"c" long:"rpcconnect" description:"Hostname/IP and port of btcd RPC server to connect to (default localhost:8334, testnet: localhost:18334, simnet: localhost:18556)"`
 	CAFile           *cfgutil.ExplicitString `long:"cafile" description:"File containing root certificates to authenticate a TLS connections with btcd"`
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for the RPC client -- NOTE: This is only allowed if the RPC client is connecting to localhost"`
-	BtcdUsername     string                  `long:"btcdusername" description:"Username for btcd authentication"`
-	BtcdPassword     string                  `long:"btcdpassword" default-mask:"-" description:"Password for btcd authentication"`
+	CzzdUsername     string                  `long:"czzdusername" description:"Username for btcd authentication"`
+	CzzdPassword     string                  `long:"czzdpassword" default-mask:"-" description:"Password for btcd authentication"`
 	Proxy            string                  `long:"proxy" description:"Connect via SOCKS5 proxy (eg. 127.0.0.1:9050)"`
 	ProxyUser        string                  `long:"proxyuser" description:"Username for proxy server"`
 	ProxyPass        string                  `long:"proxypass" default-mask:"-" description:"Password for proxy server"`
@@ -650,11 +650,11 @@ func loadConfig() (*config, []string, error) {
 	// the client.  The two settings were previously shared for btcd and
 	// client auth, so this avoids breaking backwards compatibility while
 	// allowing users to use different auth settings for btcd and wallet.
-	if cfg.BtcdUsername == "" {
-		cfg.BtcdUsername = cfg.Username
+	if cfg.CzzdUsername == "" {
+		cfg.CzzdUsername = cfg.Username
 	}
-	if cfg.BtcdPassword == "" {
-		cfg.BtcdPassword = cfg.Password
+	if cfg.CzzdPassword == "" {
+		cfg.CzzdPassword = cfg.Password
 	}
 
 	// Warn about missing config file after the final command line parse

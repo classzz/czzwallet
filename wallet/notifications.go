@@ -10,7 +10,6 @@ import (
 
 	"github.com/classzz/classzz/chaincfg/chainhash"
 	"github.com/classzz/classzz/txscript"
-	"github.com/classzz/classzz/wire"
 	"github.com/classzz/czzutil"
 	"github.com/classzz/czzwallet/waddrmgr"
 	"github.com/classzz/czzwallet/walletdb"
@@ -152,7 +151,7 @@ func makeTxSummary(dbtx walletdb.ReadTx, w *Wallet, details *wtxmgr.TxDetails) T
 	}
 }
 
-func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]btcutil.Amount) error {
+func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]czzutil.Amount) error {
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 	unspent, err := w.TxStore.UnspentOutputs(dbtx.ReadBucket(wtxmgrNamespaceKey))
 	if err != nil {

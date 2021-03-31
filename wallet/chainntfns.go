@@ -7,7 +7,6 @@ package wallet
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/classzz/classzz/chaincfg/chainhash"

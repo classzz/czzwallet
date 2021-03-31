@@ -6,6 +6,7 @@ package chain
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -83,6 +84,8 @@ func NewRPCClient(chainParams *chaincfg.Params, connect, user, pass string, cert
 	if err != nil {
 		return nil, err
 	}
+	aaa, err := rpcClient.GetInfo()
+	fmt.Println(aaa)
 	client.Client = rpcClient
 	return client, nil
 }

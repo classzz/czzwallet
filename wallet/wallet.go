@@ -980,6 +980,7 @@ func newFilterBlocksRequest(batch []wtxmgr.BlockMeta,
 				Scope: scope,
 				Index: index,
 			}
+			fmt.Println(index, addr)
 			filterReq.ExternalAddrs[scopedIndex] = addr
 		}
 		for index, addr := range scopeState.InternalBranch.Addrs() {
@@ -989,6 +990,7 @@ func newFilterBlocksRequest(batch []wtxmgr.BlockMeta,
 			}
 			filterReq.InternalAddrs[scopedIndex] = addr
 		}
+		fmt.Println("aaa")
 	}
 
 	return filterReq
