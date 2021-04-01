@@ -896,7 +896,6 @@ func expandScopeHorizons(ns walletdb.ReadWriteBucket,
 		case err != nil:
 			return err
 		}
-
 		// Register the newly generated external address and child index
 		// with the external branch recovery state.
 		scopeState.ExternalBranch.AddAddr(childIndex, addr.Address())
@@ -926,7 +925,6 @@ func expandScopeHorizons(ns walletdb.ReadWriteBucket,
 		case err != nil:
 			return err
 		}
-
 		// Register the newly generated internal address and child index
 		// with the internal branch recovery state.
 		scopeState.InternalBranch.AddAddr(childIndex, addr.Address())
@@ -980,7 +978,6 @@ func newFilterBlocksRequest(batch []wtxmgr.BlockMeta,
 				Scope: scope,
 				Index: index,
 			}
-			fmt.Println(index, addr)
 			filterReq.ExternalAddrs[scopedIndex] = addr
 		}
 		for index, addr := range scopeState.InternalBranch.Addrs() {
@@ -990,7 +987,6 @@ func newFilterBlocksRequest(batch []wtxmgr.BlockMeta,
 			}
 			filterReq.InternalAddrs[scopedIndex] = addr
 		}
-		fmt.Println("aaa")
 	}
 
 	return filterReq

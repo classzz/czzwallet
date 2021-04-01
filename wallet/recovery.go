@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/classzz/classzz/chaincfg"
@@ -92,7 +91,6 @@ func (rm *RecoveryManager) Resurrect(ns walletdb.ReadBucket,
 				scopeState.ExternalBranch.MarkInvalidChild(i)
 				continue
 			}
-			fmt.Println("externalCount", i, addr)
 			scopeState.ExternalBranch.AddAddr(i, addr.Address())
 		}
 
@@ -112,7 +110,6 @@ func (rm *RecoveryManager) Resurrect(ns walletdb.ReadBucket,
 				scopeState.InternalBranch.MarkInvalidChild(i)
 				continue
 			}
-			fmt.Println("internalCount", i, addr)
 			scopeState.InternalBranch.AddAddr(i, addr.Address())
 		}
 
@@ -348,7 +345,6 @@ func (brs *BranchRecoveryState) ExtendHorizon() (uint32, uint32) {
 // AddAddr adds a freshly derived address from our lookahead into the map of
 // known addresses for this branch.
 func (brs *BranchRecoveryState) AddAddr(index uint32, addr czzutil.Address) {
-	fmt.Println("BranchRecoveryState add", index, addr)
 	brs.addresses[index] = addr
 }
 

@@ -151,8 +151,8 @@ var (
 	// DefaultKeyScopes is the set of default key scopes that will be
 	// created by the root manager upon initial creation.
 	DefaultKeyScopes = []KeyScope{
-		KeyScopeBIP0049Plus,
-		KeyScopeBIP0084,
+		//KeyScopeBIP0049Plus,
+		//KeyScopeBIP0084,
 		KeyScopeBIP0044,
 	}
 
@@ -160,14 +160,6 @@ var (
 	// address schema for each scope type. This will be consulted during
 	// the initial creation of the root key manager.
 	ScopeAddrMap = map[KeyScope]ScopeAddrSchema{
-		KeyScopeBIP0049Plus: {
-			ExternalAddrType: NestedWitnessPubKey,
-			InternalAddrType: WitnessPubKey,
-		},
-		KeyScopeBIP0084: {
-			ExternalAddrType: WitnessPubKey,
-			InternalAddrType: WitnessPubKey,
-		},
 		KeyScopeBIP0044: {
 			InternalAddrType: PubKeyHash,
 			ExternalAddrType: PubKeyHash,

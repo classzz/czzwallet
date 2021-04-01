@@ -6,4 +6,4 @@ package main
 
 import "github.com/classzz/czzwallet/netparams"
 
-var activeNet = &netparams.TestNetParams
+var activeNet = &netparams.MainNetParams
