@@ -6,6 +6,7 @@
 package txauthor
 
 import (
+	"errors"
 	"github.com/classzz/classzz/chaincfg"
 	"github.com/classzz/classzz/txscript"
 	"github.com/classzz/classzz/wire"
@@ -201,47 +202,42 @@ type SecretsSource interface {
 // are passed in prevPkScripts and the slice length must match the number of
 // inputs.  Private keys and redeem scripts are looked up using a SecretsSource
 // based on the previous output script.
-//func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, inputValues []czzutil.Amount,
-//	secrets SecretsSource) error {
-//
-//	inputs := tx.TxIn
-//	hashCache := txscript.NewTxSigHashes(tx)
-//	chainParams := secrets.ChainParams()
-//
-//	if len(inputs) != len(prevPkScripts) {
-//		return errors.New("tx.TxIn and prevPkScripts slices must " +
-//			"have equal length")
-//	}
-//
-//	for i := range inputs {
-//		pkScript := prevPkScripts[i]
-//
-//		switch {
-//		// If this is a p2sh output, who's script hash pre-image is a
-//		// witness program, then we'll need to use a modified signing
-//		// function which generates both the sigScript, and the witness
-//		// script.
-//		case txscript.IsPayToScriptHash(pkScript):
-//			err := spendNestedWitnessPubKeyHash(inputs[i], pkScript,
-//				int64(inputValues[i]), chainParams, secrets,
-//				tx, hashCache, i)
-//			if err != nil {
-//				return err
-//			}
-//		default:
-//			sigScript := inputs[i].SignatureScript
-//			script, err := txscript.SignTxOutput(chainParams, tx, i,
-//				pkScript, txscript.SigHashAll, secrets, secrets,
-//				sigScript)
-//			if err != nil {
-//				return err
-//			}
-//			inputs[i].SignatureScript = script
-//		}
-//	}
-//
-//	return nil
-//}
+func AddAllInputScripts(tx *wire.MsgTx, prevPkScripts [][]byte, inputValues []czzutil.Amount,
+	secrets SecretsSource) error {
+
+	inputs := tx.TxIn
+	//hashCache := txscript.NewTxSigHashes(tx)
+	chainParams := secrets.ChainParams()
+
+	if len(inputs) != len(prevPkScripts) {
+		return errors.New("tx.TxIn and prevPkScripts slices must " +
+			"have equal length")
+	}
+
+	for i := range inputs {
+		pkScript := prevPkScripts[i]
+		// tx, idx, amt, subscript, hashtype, pk, compress
+		// First obtain the key pair associated with this p2wkh address.
+		_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkScript,
+			chainParams)
+		if err != nil {
+			return err
+		}
+		privKey, compressed, err := secrets.GetKey(addrs[0])
+		if err != nil {
+			return err
+		}
+		script, err := txscript.SignatureScript(tx, i, int64(inputValues[i].ToUnit(czzutil.AmountSatoshi)),
+			pkScript, txscript.SigHashAll, privKey, compressed)
+		if err != nil {
+			return err
+		}
+		inputs[i].SignatureScript = script
+
+	}
+
+	return nil
+}
 
 // spendWitnessKeyHash generates, and sets a valid witness for spending the
 // passed pkScript with the specified input amount. The input amount *must*
@@ -361,6 +357,6 @@ type SecretsSource interface {
 // AddAllInputScripts modifies an authored transaction by adding inputs scripts
 // for each input of an authored transaction.  Private keys and redeem scripts
 // are looked up using a SecretsSource based on the previous output script.
-//func (tx *AuthoredTx) AddAllInputScripts(secrets SecretsSource) error {
-//	return AddAllInputScripts(tx.Tx, tx.PrevScripts, tx.PrevInputValues, secrets)
-//}
+func (tx *AuthoredTx) AddAllInputScripts(secrets SecretsSource) error {
+	return AddAllInputScripts(tx.Tx, tx.PrevScripts, tx.PrevInputValues, secrets)
+}
