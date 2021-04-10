@@ -620,7 +620,7 @@ func loadConfig() (*config, []string, error) {
 		allListeners := append(cfg.LegacyRPCListeners,
 			cfg.ExperimentalRPCListeners...)
 		for _, addr := range allListeners {
-			host, _, err := net.SplitHostPort(addr)
+			//host, _, err := net.SplitHostPort(addr)
 			if err != nil {
 				str := "%s: RPC listen interface '%s' is " +
 					"invalid: %v"
@@ -629,15 +629,15 @@ func loadConfig() (*config, []string, error) {
 				fmt.Fprintln(os.Stderr, usageMessage)
 				return nil, nil, err
 			}
-			if _, ok := localhostListeners[host]; !ok {
-				str := "%s: the --noservertls option may not be used " +
-					"when binding RPC to non localhost " +
-					"addresses: %s"
-				err := fmt.Errorf(str, funcName, addr)
-				fmt.Fprintln(os.Stderr, err)
-				fmt.Fprintln(os.Stderr, usageMessage)
-				return nil, nil, err
-			}
+			//if _, ok := localhostListeners[host]; !ok {
+			//	str := "%s: the --noservertls option may not be used " +
+			//		"when binding RPC to non localhost " +
+			//		"addresses: %s"
+			//	err := fmt.Errorf(str, funcName, addr)
+			//	fmt.Fprintln(os.Stderr, err)
+			//	fmt.Fprintln(os.Stderr, usageMessage)
+			//	return nil, nil, err
+			//}
 		}
 	}
 
