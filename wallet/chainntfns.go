@@ -114,8 +114,8 @@ func (w *Wallet) handleChainNotifications() {
 
 				err = w.syncWithChain(birthdayBlock)
 				if err != nil && !w.ShuttingDown() {
-					panic(fmt.Errorf("unable to synchronize "+
-						"wallet to chain: %v", err))
+					//panic(fmt.Errorf("unable to synchronize "+
+					//	"wallet to chain: %v", err))
 				}
 			case chain.BlockConnected:
 				err = walletdb.Update(w.db, func(tx walletdb.ReadWriteTx) error {
